@@ -190,7 +190,7 @@ namespace IdeologyExpandedEnclaves
             return available;
         }
 
-        private static void DrawCandidate(Rect rect, Pawn candidate)
+        private void DrawCandidate(Rect rect, Pawn candidate)
         {
             Widgets.DrawMenuSection(rect);
 
@@ -266,19 +266,79 @@ namespace IdeologyExpandedEnclaves
                 content.xMax - buttonWidth,
                 content.y + 62f,
                 buttonWidth,
-                44f
+                54f
             );
 
-            Widgets.ButtonText(
+            int cost =
+                EnclaveRecruitmentService.GetRecruitmentCost(candidate);
+            int availableSilver =
+                EnclaveRecruitmentService.GetAvailableSilver(camp);
+            bool canAfford = availableSilver >= cost;
+            string recruitLabel =
+                "Recruit — " +
+                cost +
+                " silver" +
+                (canAfford
+                    ? string.Empty
+                    : "\nInsufficient silver");
+
+            if (Widgets.ButtonText(
                 recruitRect,
-                "Recruit\n(coming soon)",
+                recruitLabel,
                 true,
                 true,
-                false
-            );
+                canAfford
+            ))
+            {
+                ConfirmRecruitment(candidate, cost);
+            }
+
             TooltipHandler.TipRegion(
                 recruitRect,
-                "Recruitment requirements will be added in the next milestone."
+                canAfford
+                    ? "Recruit this candidate for " +
+                        cost +
+                        " silver from the visiting group's inventories."
+                    : "Insufficient silver: " +
+                        availableSilver +
+                        " of " +
+                        cost +
+                        " available in the visiting group's inventories."
+            );
+        }
+
+        private void ConfirmRecruitment(Pawn candidate, int cost)
+        {
+            string enclaveName =
+                camp?.Data?.Name ?? "the enclave";
+
+            Find.WindowStack.Add(
+                Dialog_MessageBox.CreateConfirmation(
+                    "Recruit " +
+                    candidate.LabelShort +
+                    " from " +
+                    enclaveName +
+                    " for " +
+                    cost +
+                    " silver?",
+                    delegate
+                    {
+                        string resultMessage;
+                        bool recruited =
+                            EnclaveRecruitmentService.TryRecruit(
+                                camp,
+                                candidate,
+                                out resultMessage
+                            );
+
+                        Messages.Message(
+                            resultMessage,
+                            recruited
+                                ? MessageTypeDefOf.PositiveEvent
+                                : MessageTypeDefOf.RejectInput
+                        );
+                    }
+                )
             );
         }
 

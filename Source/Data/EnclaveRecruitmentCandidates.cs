@@ -16,6 +16,13 @@ namespace IdeologyExpandedEnclaves
                 candidates.Contains(pawn);
         }
 
+        public bool RemoveCandidate(Pawn pawn)
+        {
+            return pawn != null &&
+                candidates != null &&
+                candidates.Remove(pawn);
+        }
+
         public void SetCandidates(IEnumerable<Pawn> pawns)
         {
             if (candidates == null)
