@@ -98,7 +98,7 @@ namespace IdeologyExpandedEnclaves
             if (pilgrims.Count > 0)
             {
                 AssignLeader(camp, pilgrims);
-                AssignTrader(camp, pilgrims);
+                AssignTrader(camp, pilgrims, map);
 
                 LordMaker.MakeNewLord(
                     pilgrimFaction,
@@ -186,7 +186,8 @@ namespace IdeologyExpandedEnclaves
 
         private static void AssignTrader(
             PilgrimCamp camp,
-            List<Pawn> pilgrims
+            List<Pawn> pilgrims,
+            Map map
         )
         {
             Pawn leader = camp.PawnRoles?.GetPawn(
@@ -221,6 +222,16 @@ namespace IdeologyExpandedEnclaves
                 return;
             }
 
+            if (!InitializeTrader(trader, map))
+            {
+                Log.Error(
+                    "[IEE] Trader role assignment failed because " +
+                    "vanilla trader initialization was invalid."
+                );
+
+                return;
+            }
+
             camp.PawnRoles.Assign(
                 EnclavePawnRole.Trader,
                 trader
@@ -235,6 +246,146 @@ namespace IdeologyExpandedEnclaves
                 (camp.Data?.Name ?? "an enclave") +
                 "."
             );
+        }
+
+        private static bool InitializeTrader(
+            Pawn trader,
+            Map map
+        )
+        {
+            if (trader == null)
+            {
+                Log.Error(
+                    "[IEE] Cannot initialize a null Trader pawn."
+                );
+
+                return false;
+            }
+
+            if (map == null)
+            {
+                Log.Error(
+                    "[IEE] Cannot initialize Trader " +
+                    trader.LabelShort +
+                    " without a map."
+                );
+
+                return false;
+            }
+
+            TraderKindDef traderKind =
+                DefDatabase<TraderKindDef>.GetNamedSilentFail(
+                    "IEE_PilgrimCampTrader"
+                );
+
+            if (traderKind == null)
+            {
+                Log.Error(
+                    "[IEE] Missing TraderKindDef " +
+                    "IEE_PilgrimCampTrader."
+                );
+
+                return false;
+            }
+
+            if (trader.mindState == null)
+            {
+                Log.Error(
+                    "[IEE] Trader " +
+                    trader.LabelShort +
+                    " has no mind state."
+                );
+
+                return false;
+            }
+
+            trader.mindState.wantsToTradeWithColony = true;
+            PawnComponentsUtility.AddAndRemoveDynamicComponents(trader);
+
+            if (trader.trader == null)
+            {
+                Log.Error(
+                    "[IEE] RimWorld did not create a pawn trader " +
+                    "tracker for " +
+                    trader.LabelShort +
+                    "."
+                );
+
+                return false;
+            }
+
+            if (trader.trader.traderKind == traderKind)
+            {
+                Log.Message(
+                    "[IEE] Trader stock already initialized for " +
+                    trader.LabelShort +
+                    "."
+                );
+
+                return true;
+            }
+
+            if (trader.inventory == null)
+            {
+                Log.Error(
+                    "[IEE] Trader " +
+                    trader.LabelShort +
+                    " has no inventory tracker."
+                );
+
+                return false;
+            }
+
+            if (traderKind.stockGenerators.NullOrEmpty())
+            {
+                Log.Error(
+                    "[IEE] TraderKindDef IEE_PilgrimCampTrader " +
+                    "has no stock generators."
+                );
+
+                return false;
+            }
+
+            trader.trader.traderKind = traderKind;
+
+            int stackCount = 0;
+            int itemCount = 0;
+
+            foreach (StockGenerator stockGenerator in
+                traderKind.stockGenerators)
+            {
+                foreach (Thing thing in stockGenerator.GenerateThings(
+                    map.Tile,
+                    trader.Faction
+                ))
+                {
+                    if (trader.inventory.innerContainer.TryAdd(thing))
+                    {
+                        stackCount++;
+                        itemCount += thing.stackCount;
+                    }
+                    else
+                    {
+                        Log.Warning(
+                            "[IEE] Could not add " +
+                            thing.Label +
+                            " to trader inventory."
+                        );
+                    }
+                }
+            }
+
+            Log.Message(
+                "[IEE] Initialized vanilla trader " +
+                trader.LabelShort +
+                " with " +
+                stackCount +
+                " stock stacks (" +
+                itemCount +
+                " total items)."
+            );
+
+            return true;
         }
     }
 }
