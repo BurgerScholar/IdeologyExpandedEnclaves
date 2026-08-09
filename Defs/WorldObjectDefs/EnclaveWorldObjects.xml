@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <WorldObjectDef>
+    <defName>IEE_PilgrimCamp</defName>
+    <label>pilgrim camp</label>
+    <description>A temporary community of travelers gathered around a shared ideology.</description>
+
+    <worldObjectClass>IdeologyExpandedEnclaves.PilgrimCamp</worldObjectClass>
+
+    <mapGenerator>Encounter</mapGenerator>
+    <overrideMapSize>(120,1,120)</overrideMapSize>
+
+    <texture>World/WorldObjects/DefaultSettlement</texture>
+    <selectable>true</selectable>
+  </WorldObjectDef>
+</Defs>

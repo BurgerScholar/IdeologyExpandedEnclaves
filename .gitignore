@@ -1,0 +1,14 @@
+Assemblies/*.dll
+Assemblies/*.pdb
+Source/bin/
+Source/obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln
+*.slnx
+Player.log
+*.rws
+Thumbs.db
+.DS_Store
