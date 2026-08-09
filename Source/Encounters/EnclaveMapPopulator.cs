@@ -98,6 +98,7 @@ namespace IdeologyExpandedEnclaves
             if (pilgrims.Count > 0)
             {
                 AssignLeader(camp, pilgrims);
+                AssignTrader(camp, pilgrims);
 
                 LordMaker.MakeNewLord(
                     pilgrimFaction,
@@ -177,6 +178,59 @@ namespace IdeologyExpandedEnclaves
                 leader.LabelShort +
                 " (" +
                 leader.GetUniqueLoadID() +
+                ") for " +
+                (camp.Data?.Name ?? "an enclave") +
+                "."
+            );
+        }
+
+        private static void AssignTrader(
+            PilgrimCamp camp,
+            List<Pawn> pilgrims
+        )
+        {
+            Pawn leader = camp.PawnRoles?.GetPawn(
+                EnclavePawnRole.Leader
+            );
+
+            if (leader == null)
+            {
+                Log.Error(
+                    "[IEE] Could not assign the Trader role " +
+                    "because the enclave Leader was missing."
+                );
+
+                return;
+            }
+
+            Pawn trader = pilgrims.Find(
+                pawn =>
+                    pawn != null &&
+                    pawn != leader &&
+                    !pawn.Dead &&
+                    pawn.RaceProps.Humanlike
+            );
+
+            if (trader == null)
+            {
+                Log.Warning(
+                    "[IEE] Enclave population was too small " +
+                    "to assign a distinct Trader."
+                );
+
+                return;
+            }
+
+            camp.PawnRoles.Assign(
+                EnclavePawnRole.Trader,
+                trader
+            );
+
+            Log.Message(
+                "[IEE] Assigned Trader role to " +
+                trader.LabelShort +
+                " (" +
+                trader.GetUniqueLoadID() +
                 ") for " +
                 (camp.Data?.Name ?? "an enclave") +
                 "."
