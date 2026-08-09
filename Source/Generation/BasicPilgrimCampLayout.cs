@@ -25,6 +25,8 @@ namespace IdeologyExpandedEnclaves
 
             StorageAreaPiece.Generate(context);
 
+            RitualAreaPiece.Generate(context);
+
             Log.Message("[IEE] Layout generated.");
         }
     }
