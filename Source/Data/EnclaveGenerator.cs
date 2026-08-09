@@ -1,4 +1,5 @@
 using System;
+using Verse;
 
 namespace IdeologyExpandedEnclaves
 {
@@ -26,7 +27,7 @@ namespace IdeologyExpandedEnclaves
 
         public static EnclaveData Generate()
         {
-            return new EnclaveData
+            EnclaveData data = new EnclaveData
             {
                 Name = names[random.Next(names.Length)],
                 Leader = leaders[random.Next(leaders.Length)],
@@ -34,6 +35,18 @@ namespace IdeologyExpandedEnclaves
                 Ideology = "Unknown",
                 Friendly = true
             };
+
+            data.EnsureLayoutAssignments(random);
+
+            Log.Message(
+                "[IEE] Generated persistent layout for " +
+                data.Name +
+                ": " +
+                data.DescribeLayoutAssignments() +
+                "."
+            );
+
+            return data;
         }
     }
 }

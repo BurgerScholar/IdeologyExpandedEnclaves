@@ -1,4 +1,3 @@
-using System;
 using Verse;
 
 namespace IdeologyExpandedEnclaves
@@ -13,56 +12,34 @@ namespace IdeologyExpandedEnclaves
 
         public LayoutAnchors(
             IntVec3 campCenter,
-            Random random
+            EnclaveData enclave
         )
         {
             Center = campCenter;
 
-            IntVec3[] positionOffsets =
-            {
-                new IntVec3(0, 0, 16),
-                new IntVec3(0, 0, -16),
-                new IntVec3(16, 0, 0),
-                new IntVec3(-16, 0, 0)
-            };
+            Gathering = campCenter + GetOffset(enclave.GatheringPosition);
+            Sleeping = campCenter + GetOffset(enclave.SleepingPosition);
+            Storage = campCenter + GetOffset(enclave.StoragePosition);
+            Ritual = campCenter + GetOffset(enclave.RitualPosition);
+        }
 
-            string[] positionNames =
+        private static IntVec3 GetOffset(
+            EnclaveLayoutPosition position
+        )
+        {
+            switch (position)
             {
-                "North",
-                "South",
-                "East",
-                "West"
-            };
-
-            int[] assignments =
-            {
-                0,
-                1,
-                2,
-                3
-            };
-
-            for (int i = assignments.Length - 1; i > 0; i--)
-            {
-                int swapIndex = random.Next(i + 1);
-                int temporary = assignments[i];
-
-                assignments[i] = assignments[swapIndex];
-                assignments[swapIndex] = temporary;
+                case EnclaveLayoutPosition.North:
+                    return new IntVec3(0, 0, 16);
+                case EnclaveLayoutPosition.South:
+                    return new IntVec3(0, 0, -16);
+                case EnclaveLayoutPosition.East:
+                    return new IntVec3(16, 0, 0);
+                case EnclaveLayoutPosition.West:
+                    return new IntVec3(-16, 0, 0);
+                default:
+                    return IntVec3.Zero;
             }
-
-            Gathering = campCenter + positionOffsets[assignments[0]];
-            Sleeping = campCenter + positionOffsets[assignments[1]];
-            Storage = campCenter + positionOffsets[assignments[2]];
-            Ritual = campCenter + positionOffsets[assignments[3]];
-
-            Log.Message(
-                "[IEE] Layout arrangement: " +
-                "Gathering=" + positionNames[assignments[0]] + ", " +
-                "Sleeping=" + positionNames[assignments[1]] + ", " +
-                "Storage=" + positionNames[assignments[2]] + ", " +
-                "Ritual=" + positionNames[assignments[3]] + "."
-            );
         }
     }
 }

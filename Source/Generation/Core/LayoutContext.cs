@@ -25,7 +25,19 @@ namespace IdeologyExpandedEnclaves
             Population = population;
             Enclave = enclave;
             Random = new Random();
-            Anchors = new LayoutAnchors(campCenter, Random);
+
+            bool generatedLayout =
+                Enclave.EnsureLayoutAssignments(Random);
+
+            Log.Message(
+                generatedLayout
+                    ? "[IEE] Generated and retained missing or invalid layout: " +
+                      Enclave.DescribeLayoutAssignments() + "."
+                    : "[IEE] Reused persistent layout: " +
+                      Enclave.DescribeLayoutAssignments() + "."
+            );
+
+            Anchors = new LayoutAnchors(campCenter, Enclave);
             Zones = new LayoutZones(Anchors);
         }
     }
