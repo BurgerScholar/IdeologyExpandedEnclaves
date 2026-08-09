@@ -36,6 +36,7 @@ namespace IdeologyExpandedEnclaves
                 Friendly = true
             };
 
+            data.InitializeReputation();
             data.EnsureLayoutAssignments(random);
 
             Log.Message(

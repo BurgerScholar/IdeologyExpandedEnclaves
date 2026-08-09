@@ -19,18 +19,35 @@ namespace IdeologyExpandedEnclaves
         public string Ideology;
         public int Population;
         public bool Friendly;
+        public int Reputation;
         public EnclaveLayoutPosition GatheringPosition;
         public EnclaveLayoutPosition SleepingPosition;
         public EnclaveLayoutPosition StoragePosition;
         public EnclaveLayoutPosition RitualPosition;
 
+        public EnclaveReputationTier ReputationTier =>
+            EnclaveReputation.GetTier(Reputation);
+
+        public string ReputationTierLabel =>
+            EnclaveReputation.GetTierLabel(Reputation);
+
         public void ExposeData()
         {
+            if (Scribe.mode == LoadSaveMode.Saving)
+            {
+                Reputation = EnclaveReputation.Clamp(Reputation);
+            }
+
             Scribe_Values.Look(ref Name, "name", "Unnamed Enclave");
             Scribe_Values.Look(ref Leader, "leader", "Unknown");
             Scribe_Values.Look(ref Ideology, "ideology", "Unknown");
             Scribe_Values.Look(ref Population, "population", 0);
             Scribe_Values.Look(ref Friendly, "friendly", true);
+            Scribe_Values.Look(
+                ref Reputation,
+                "reputation",
+                EnclaveReputation.InitialValue
+            );
             Scribe_Values.Look(
                 ref GatheringPosition,
                 "gatheringPosition",
@@ -51,6 +68,98 @@ namespace IdeologyExpandedEnclaves
                 "ritualPosition",
                 EnclaveLayoutPosition.Unassigned
             );
+
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
+                int loadedReputation = Reputation;
+
+                Reputation = EnclaveReputation.Clamp(Reputation);
+
+                if (loadedReputation != Reputation)
+                {
+                    Log.Warning(
+                        "[IEE] Clamped invalid loaded reputation for " +
+                        (Name ?? "an enclave") +
+                        " from " +
+                        loadedReputation +
+                        " to " +
+                        Reputation +
+                        "."
+                    );
+                }
+
+                Log.Message(
+                    "[IEE] Loaded persistent reputation for " +
+                    (Name ?? "an enclave") +
+                    ": " +
+                    Reputation +
+                    " (" +
+                    ReputationTierLabel +
+                    ")."
+                );
+            }
+        }
+
+        public void InitializeReputation()
+        {
+            Reputation = EnclaveReputation.InitialValue;
+
+            Log.Message(
+                "[IEE] Initialized reputation for " +
+                (Name ?? "an enclave") +
+                " at " +
+                Reputation +
+                " (" +
+                ReputationTierLabel +
+                ")."
+            );
+        }
+
+        public int ChangeReputation(
+            int amount,
+            string reason = null
+        )
+        {
+            return ApplyReputation(
+                (long)Reputation + amount,
+                reason
+            );
+        }
+
+        public int SetReputation(
+            int value,
+            string reason = null
+        )
+        {
+            return ApplyReputation(value, reason);
+        }
+
+        private int ApplyReputation(long value, string reason)
+        {
+            int previous = EnclaveReputation.Clamp(Reputation);
+            int updated = EnclaveReputation.Clamp(value);
+
+            Reputation = updated;
+
+            if (previous != updated)
+            {
+                Log.Message(
+                    "[IEE] Reputation for " +
+                    (Name ?? "an enclave") +
+                    " changed from " +
+                    previous +
+                    " to " +
+                    updated +
+                    " (" +
+                    ReputationTierLabel +
+                    ")" +
+                    (reason.NullOrEmpty()
+                        ? "."
+                        : ": " + reason + ".")
+                );
+            }
+
+            return Reputation;
         }
 
         public bool EnsureLayoutAssignments(Random random)

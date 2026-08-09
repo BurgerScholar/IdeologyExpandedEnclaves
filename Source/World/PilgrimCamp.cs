@@ -136,6 +136,11 @@ namespace IdeologyExpandedEnclaves
                     "Leader: " + Data.Leader + "\n" +
                     "Population: " + Data.Population + "\n" +
                     "Ideology: " + Data.Ideology + "\n" +
+                    "Reputation: " +
+                    Data.Reputation +
+                    " (" +
+                    Data.ReputationTierLabel +
+                    ")\n" +
                     "Hospitality: " + hospitality
                 )
             );
