@@ -99,6 +99,7 @@ namespace IdeologyExpandedEnclaves
             {
                 AssignLeader(camp, pilgrims);
                 AssignTrader(camp, pilgrims, map);
+                AssignRecruiter(camp, pilgrims);
 
                 LordMaker.MakeNewLord(
                     pilgrimFaction,
@@ -386,6 +387,63 @@ namespace IdeologyExpandedEnclaves
             );
 
             return true;
+        }
+
+        private static void AssignRecruiter(
+            PilgrimCamp camp,
+            List<Pawn> pilgrims
+        )
+        {
+            Pawn leader = camp.PawnRoles?.GetPawn(
+                EnclavePawnRole.Leader
+            );
+            Pawn trader = camp.PawnRoles?.GetPawn(
+                EnclavePawnRole.Trader
+            );
+
+            if (leader == null || trader == null)
+            {
+                Log.Warning(
+                    "[IEE] Could not assign a distinct Recruiter " +
+                    "because the Leader or Trader assignment was missing."
+                );
+
+                return;
+            }
+
+            Pawn recruiter = pilgrims.Find(
+                pawn =>
+                    pawn != null &&
+                    pawn != leader &&
+                    pawn != trader &&
+                    !pawn.Dead &&
+                    pawn.RaceProps.Humanlike
+            );
+
+            if (recruiter == null)
+            {
+                Log.Warning(
+                    "[IEE] Enclave population was too small " +
+                    "to assign a distinct Recruiter."
+                );
+
+                return;
+            }
+
+            camp.PawnRoles.Assign(
+                EnclavePawnRole.Recruiter,
+                recruiter
+            );
+
+            Log.Message(
+                "[IEE] Assigned Recruiter role to " +
+                recruiter.LabelShort +
+                " (" +
+                recruiter.GetUniqueLoadID() +
+                ") for " +
+                (camp.Data?.Name ?? "an enclave") +
+                "."
+            );
         }
     }
 }

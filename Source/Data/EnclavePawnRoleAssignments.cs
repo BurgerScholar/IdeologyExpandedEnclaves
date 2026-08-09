@@ -6,7 +6,8 @@ namespace IdeologyExpandedEnclaves
     public enum EnclavePawnRole
     {
         Leader,
-        Trader
+        Trader,
+        Recruiter
     }
 
     public class EnclavePawnRoleAssignments : IExposable
