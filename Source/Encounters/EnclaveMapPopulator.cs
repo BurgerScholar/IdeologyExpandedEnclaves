@@ -97,6 +97,8 @@ namespace IdeologyExpandedEnclaves
 
             if (pilgrims.Count > 0)
             {
+                AssignLeader(camp, pilgrims);
+
                 LordMaker.MakeNewLord(
                     pilgrimFaction,
                     new LordJob_DefendPoint(
@@ -129,6 +131,55 @@ namespace IdeologyExpandedEnclaves
                 "[Ideology Expanded: Enclaves] Spawned " +
                 pilgrims.Count +
                 " neutral pilgrims with camp behavior."
+            );
+        }
+
+        private static void AssignLeader(
+            PilgrimCamp camp,
+            List<Pawn> pilgrims
+        )
+        {
+            Pawn leader = pilgrims.Find(
+                pawn =>
+                    pawn != null &&
+                    !pawn.Dead &&
+                    pawn.RaceProps.Humanlike
+            );
+
+            if (leader == null)
+            {
+                Log.Error(
+                    "[IEE] Could not assign the enclave Leader role."
+                );
+
+                return;
+            }
+
+            string leaderName = camp?.Data?.Leader;
+
+            if (!leaderName.NullOrEmpty())
+            {
+                leader.Name = new NameSingle(leaderName);
+            }
+
+            if (camp.PawnRoles == null)
+            {
+                camp.PawnRoles = new EnclavePawnRoleAssignments();
+            }
+
+            camp.PawnRoles.Assign(
+                EnclavePawnRole.Leader,
+                leader
+            );
+
+            Log.Message(
+                "[IEE] Assigned Leader role to " +
+                leader.LabelShort +
+                " (" +
+                leader.GetUniqueLoadID() +
+                ") for " +
+                (camp.Data?.Name ?? "an enclave") +
+                "."
             );
         }
     }

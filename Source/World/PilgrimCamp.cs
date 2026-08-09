@@ -8,16 +8,27 @@ namespace IdeologyExpandedEnclaves
     public class PilgrimCamp : MapParent
     {
         public EnclaveData Data;
+        public EnclavePawnRoleAssignments PawnRoles =
+            new EnclavePawnRoleAssignments();
 
         public override void ExposeData()
         {
             base.ExposeData();
 
             Scribe_Deep.Look(ref Data, "enclaveData");
+            Scribe_Deep.Look(ref PawnRoles, "pawnRoles");
 
-            if (Scribe.mode == LoadSaveMode.PostLoadInit && Data == null)
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
-                Data = EnclaveGenerator.Generate();
+                if (Data == null)
+                {
+                    Data = EnclaveGenerator.Generate();
+                }
+
+                if (PawnRoles == null)
+                {
+                    PawnRoles = new EnclavePawnRoleAssignments();
+                }
             }
         }
 
