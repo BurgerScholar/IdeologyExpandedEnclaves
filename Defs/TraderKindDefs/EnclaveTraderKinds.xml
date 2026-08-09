@@ -28,6 +28,50 @@
         <thingDef>Steel</thingDef>
         <countRange>15~30</countRange>
       </li>
+
+      <!-- Additional goods the enclave will buy, but not stock for sale. -->
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>BlocksSandstone</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>BlocksGranite</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>Leather_Plain</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>WoolSheep</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>MedicineIndustrial</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>Pemmican</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>RawPotatoes</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>RawRice</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>RawCorn</thingDef>
+      </li>
+      <li Class="StockGenerator_BuyTradeTag">
+        <tag>BasicClothing</tag>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>MeleeWeapon_Club</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>MeleeWeapon_Knife</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>Bow_Short</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>Gun_Revolver</thingDef>
+      </li>
     </stockGenerators>
   </TraderKindDef>
 </Defs>
