@@ -100,6 +100,7 @@ namespace IdeologyExpandedEnclaves
                 AssignLeader(camp, pilgrims);
                 AssignTrader(camp, pilgrims, map);
                 AssignRecruiter(camp, pilgrims);
+                SelectRecruitmentCandidates(camp, pilgrims);
 
                 LordMaker.MakeNewLord(
                     pilgrimFaction,
@@ -444,6 +445,134 @@ namespace IdeologyExpandedEnclaves
                 (camp.Data?.Name ?? "an enclave") +
                 "."
             );
+        }
+
+        private static void SelectRecruitmentCandidates(
+            PilgrimCamp camp,
+            List<Pawn> pilgrims
+        )
+        {
+            if (camp.RecruitmentCandidates == null)
+            {
+                camp.RecruitmentCandidates =
+                    new EnclaveRecruitmentCandidates();
+            }
+
+            int population = pilgrims?.Count ?? 0;
+            int targetCount = GetRecruitmentCandidateCount(population);
+            List<Pawn> candidates = new List<Pawn>();
+
+            if (targetCount == 0)
+            {
+                camp.RecruitmentCandidates.SetCandidates(candidates);
+                Log.Message(
+                    "[IEE] Selected 0 recruitment candidates for " +
+                    (camp.Data?.Name ?? "an enclave") +
+                    " (population " +
+                    population +
+                    ")."
+                );
+
+                return;
+            }
+
+            Pawn leader = camp.PawnRoles?.GetPawn(
+                EnclavePawnRole.Leader
+            );
+            Pawn trader = camp.PawnRoles?.GetPawn(
+                EnclavePawnRole.Trader
+            );
+            Pawn recruiter = camp.PawnRoles?.GetPawn(
+                EnclavePawnRole.Recruiter
+            );
+
+            if (leader == null || trader == null || recruiter == null)
+            {
+                camp.RecruitmentCandidates.SetCandidates(candidates);
+                Log.Warning(
+                    "[IEE] Recruitment candidates were not selected " +
+                    "because Leader, Trader, and Recruiter must all " +
+                    "be assigned first."
+                );
+
+                return;
+            }
+
+            foreach (Pawn pilgrim in pilgrims)
+            {
+                if (
+                    pilgrim == null ||
+                    pilgrim.Dead ||
+                    !pilgrim.RaceProps.Humanlike ||
+                    pilgrim == leader ||
+                    pilgrim == trader ||
+                    pilgrim == recruiter
+                )
+                {
+                    continue;
+                }
+
+                candidates.Add(pilgrim);
+                Log.Message(
+                    "[IEE] Selected recruitment candidate " +
+                    pilgrim.LabelShort +
+                    " (" +
+                    pilgrim.GetUniqueLoadID() +
+                    ") for " +
+                    (camp.Data?.Name ?? "an enclave") +
+                    "."
+                );
+
+                if (candidates.Count >= targetCount)
+                {
+                    break;
+                }
+            }
+
+            camp.RecruitmentCandidates.SetCandidates(candidates);
+
+            if (candidates.Count < targetCount)
+            {
+                Log.Warning(
+                    "[IEE] Selected only " +
+                    candidates.Count +
+                    " of " +
+                    targetCount +
+                    " requested recruitment candidates for " +
+                    (camp.Data?.Name ?? "an enclave") +
+                    "."
+                );
+            }
+
+            Log.Message(
+                "[IEE] Selected " +
+                candidates.Count +
+                " recruitment candidate(s) for " +
+                (camp.Data?.Name ?? "an enclave") +
+                " (population " +
+                population +
+                ")."
+            );
+        }
+
+        private static int GetRecruitmentCandidateCount(int population)
+        {
+            if (population >= 11)
+            {
+                return 3;
+            }
+
+            if (population >= 8)
+            {
+                return 2;
+            }
+
+            if (population >= 6)
+            {
+                return 1;
+            }
+
+            return 0;
         }
     }
 }

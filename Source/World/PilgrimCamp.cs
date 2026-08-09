@@ -10,6 +10,8 @@ namespace IdeologyExpandedEnclaves
         public EnclaveData Data;
         public EnclavePawnRoleAssignments PawnRoles =
             new EnclavePawnRoleAssignments();
+        public EnclaveRecruitmentCandidates RecruitmentCandidates =
+            new EnclaveRecruitmentCandidates();
 
         public override void ExposeData()
         {
@@ -17,6 +19,10 @@ namespace IdeologyExpandedEnclaves
 
             Scribe_Deep.Look(ref Data, "enclaveData");
             Scribe_Deep.Look(ref PawnRoles, "pawnRoles");
+            Scribe_Deep.Look(
+                ref RecruitmentCandidates,
+                "recruitmentCandidates"
+            );
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
@@ -28,6 +34,12 @@ namespace IdeologyExpandedEnclaves
                 if (PawnRoles == null)
                 {
                     PawnRoles = new EnclavePawnRoleAssignments();
+                }
+
+                if (RecruitmentCandidates == null)
+                {
+                    RecruitmentCandidates =
+                        new EnclaveRecruitmentCandidates();
                 }
             }
         }
@@ -90,15 +102,11 @@ namespace IdeologyExpandedEnclaves
             yield return new Command_Action
             {
                 defaultLabel = "Trade",
-                defaultDesc = "Attempt to trade with the pilgrims.",
+                defaultDesc =
+                    "Locate the enclave Trader and trade through " +
+                    "the normal pawn interaction.",
                 icon = BaseContent.BadTex,
-                action = delegate
-                {
-                    Messages.Message(
-                        "The pilgrims are not ready to trade yet.",
-                        MessageTypeDefOf.RejectInput
-                    );
-                }
+                action = HandleTradeGizmo
             };
 
             if (Prefs.DevMode)
@@ -139,6 +147,50 @@ namespace IdeologyExpandedEnclaves
             {
                 Data = EnclaveGenerator.Generate();
             }
+        }
+
+        private void HandleTradeGizmo()
+        {
+            Map map = Map;
+
+            if (map == null)
+            {
+                Messages.Message(
+                    "Visit the enclave with a caravan, then speak " +
+                    "with its designated Trader to trade.",
+                    MessageTypeDefOf.NeutralEvent
+                );
+
+                return;
+            }
+
+            Pawn trader = PawnRoles?.GetPawn(EnclavePawnRole.Trader);
+
+            if (
+                trader != null &&
+                trader.Spawned &&
+                trader.Map == map
+            )
+            {
+                CameraJumper.TryJump(trader.Position, map);
+                Messages.Message(
+                    "Enclave Trader located: " +
+                    trader.LabelShort +
+                    ". Select a colonist and use the normal Trade " +
+                    "interaction.",
+                    trader,
+                    MessageTypeDefOf.NeutralEvent
+                );
+
+                return;
+            }
+
+            Messages.Message(
+                "The enclave map exists, but its designated Trader " +
+                "could not be located. Enter the camp and look for " +
+                "the Trader before attempting to trade.",
+                MessageTypeDefOf.RejectInput
+            );
         }
 
         private void RemoveCamp()
