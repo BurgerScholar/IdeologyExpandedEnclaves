@@ -14,12 +14,20 @@ namespace IdeologyExpandedEnclaves
     {
         private Dictionary<EnclavePawnRole, Pawn> assignments =
             new Dictionary<EnclavePawnRole, Pawn>();
+        private List<EnclavePawnRole> assignmentKeysWorkingList;
+        private List<Pawn> assignmentValuesWorkingList;
 
         public void Assign(
             EnclavePawnRole role,
             Pawn pawn
         )
         {
+            if (assignments == null)
+            {
+                assignments =
+                    new Dictionary<EnclavePawnRole, Pawn>();
+            }
+
             assignments[role] = pawn;
         }
 
@@ -27,7 +35,8 @@ namespace IdeologyExpandedEnclaves
         {
             Pawn pawn;
 
-            return assignments.TryGetValue(role, out pawn)
+            return assignments != null &&
+                assignments.TryGetValue(role, out pawn)
                 ? pawn
                 : null;
         }
@@ -38,14 +47,21 @@ namespace IdeologyExpandedEnclaves
                 ref assignments,
                 "assignments",
                 LookMode.Value,
-                LookMode.Reference
+                LookMode.Reference,
+                ref assignmentKeysWorkingList,
+                ref assignmentValuesWorkingList
             );
 
-            if (Scribe.mode == LoadSaveMode.PostLoadInit &&
-                assignments == null)
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
-                assignments =
-                    new Dictionary<EnclavePawnRole, Pawn>();
+                if (assignments == null)
+                {
+                    assignments =
+                        new Dictionary<EnclavePawnRole, Pawn>();
+                }
+
+                assignmentKeysWorkingList = null;
+                assignmentValuesWorkingList = null;
             }
         }
     }

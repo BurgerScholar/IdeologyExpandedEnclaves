@@ -49,12 +49,16 @@ namespace IdeologyExpandedEnclaves
                 LookMode.Reference
             );
 
-            if (
-                Scribe.mode == LoadSaveMode.PostLoadInit &&
-                candidates == null
-            )
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
-                candidates = new List<Pawn>();
+                if (candidates == null)
+                {
+                    candidates = new List<Pawn>();
+                }
+                else
+                {
+                    candidates.RemoveAll(pawn => pawn == null);
+                }
             }
         }
     }
