@@ -25,7 +25,7 @@ namespace IdeologyExpandedEnclaves
             Population = population;
             Enclave = enclave;
             Random = new Random();
-            Anchors = new LayoutAnchors(campCenter);
+            Anchors = new LayoutAnchors(campCenter, Random);
             Zones = new LayoutZones(Anchors);
         }
     }
