@@ -247,6 +247,10 @@ namespace IdeologyExpandedEnclaves
             report.AppendLine(
                 "Layout: " + camp.Data.DescribeLayoutAssignments()
             );
+            report.AppendLine(
+                "Trader stock grants: " +
+                camp.Data.HighestTraderStockTierGranted
+            );
             report.AppendLine("Visiting group:");
 
             if (

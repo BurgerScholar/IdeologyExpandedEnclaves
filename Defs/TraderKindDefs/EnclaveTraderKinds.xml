@@ -72,6 +72,30 @@
       <li Class="StockGenerator_BuySingleDef">
         <thingDef>Gun_Revolver</thingDef>
       </li>
+
+      <!-- Reputation-tier stock eligibility. These generators add no stock;
+           the persistent tier-up service supplies the actual items. -->
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>ComponentIndustrial</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>Plasteel</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>DevilstrandCloth</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>ComponentSpacer</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>MedicineUltratech</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>Gold</thingDef>
+      </li>
+      <li Class="StockGenerator_BuySingleDef">
+        <thingDef>Uranium</thingDef>
+      </li>
     </stockGenerators>
   </TraderKindDef>
 </Defs>

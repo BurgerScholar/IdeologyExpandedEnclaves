@@ -12,6 +12,14 @@ namespace IdeologyExpandedEnclaves
         West
     }
 
+    public enum EnclaveTraderStockGrantTier
+    {
+        None,
+        Friendly,
+        Trusted,
+        Revered
+    }
+
     public class EnclaveData : IExposable
     {
         public string Name;
@@ -20,6 +28,7 @@ namespace IdeologyExpandedEnclaves
         public int Population;
         public bool Friendly;
         public int Reputation;
+        public EnclaveTraderStockGrantTier HighestTraderStockTierGranted;
         public EnclaveLayoutPosition GatheringPosition;
         public EnclaveLayoutPosition SleepingPosition;
         public EnclaveLayoutPosition StoragePosition;
@@ -49,6 +58,11 @@ namespace IdeologyExpandedEnclaves
                 EnclaveReputation.InitialValue
             );
             Scribe_Values.Look(
+                ref HighestTraderStockTierGranted,
+                "highestTraderStockTierGranted",
+                EnclaveTraderStockGrantTier.None
+            );
+            Scribe_Values.Look(
                 ref GatheringPosition,
                 "gatheringPosition",
                 EnclaveLayoutPosition.Unassigned
@@ -74,6 +88,24 @@ namespace IdeologyExpandedEnclaves
                 int loadedReputation = Reputation;
 
                 Reputation = EnclaveReputation.Clamp(Reputation);
+
+                if (
+                    !Enum.IsDefined(
+                        typeof(EnclaveTraderStockGrantTier),
+                        HighestTraderStockTierGranted
+                    )
+                )
+                {
+                    Log.Warning(
+                        "[IEE] Reset invalid trader stock grant tier " +
+                        "for " +
+                        (Name ?? "an enclave") +
+                        "."
+                    );
+
+                    HighestTraderStockTierGranted =
+                        EnclaveTraderStockGrantTier.None;
+                }
 
                 if (loadedReputation != Reputation)
                 {

@@ -142,6 +142,22 @@ namespace IdeologyExpandedEnclaves
                 return false;
             }
 
+            if (
+                !EnclaveTraderStockService.EnsureStockForCurrentTier(
+                    camp,
+                    trader
+                )
+            )
+            {
+                Messages.Message(
+                    "The enclave Trader's reputation stock could " +
+                    "not be initialized. Check the error log.",
+                    trader,
+                    MessageTypeDefOf.RejectInput
+                );
+                return false;
+            }
+
             int bonusPercent = GetTradeBonusPercent(camp);
             ITrader reputationTrader =
                 new EnclaveReputationTrader(camp, trader);
