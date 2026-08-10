@@ -45,21 +45,8 @@ namespace IdeologyExpandedEnclaves
             LongEventHandler.QueueLongEvent(
                 delegate
                 {
-                    Map map = camp.Map;
-
-                    if (map == null)
-                    {
-                        map = MapGenerator.GenerateMap(
-                            new IntVec3(120, 1, 120),
-                            camp,
-                            camp.MapGeneratorDef,
-                            null,
-                            null,
-                            false,
-                            false
-                        );
-                        EnclaveMapPopulator.PopulateNewCamp(map, camp);
-                    }
+                    Map map =
+                        EnclaveEncounterMapUtility.EnsureMapGenerated(camp);
 
                     if (camp.VisitingGroup == null)
                     {

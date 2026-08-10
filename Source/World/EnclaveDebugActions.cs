@@ -9,32 +9,35 @@ namespace IdeologyExpandedEnclaves
     {
         [DebugAction(
             "Ideology Expanded: Enclaves",
-            "Spawn pilgrim camp",
+            "Quick test enclave (12 pilgrims)",
             allowedGameStates = AllowedGameStates.PlayingOnWorld
         )]
-        public static void SpawnPilgrimCamp()
+        public static void QuickTestEnclave()
         {
-            WorldObjectDef def =
-                DefDatabase<WorldObjectDef>.GetNamed("IEE_PilgrimCamp");
+            EnclaveDevTools.CreateQuickTestEnclave();
+        }
 
-            PilgrimCamp camp =
-                 (PilgrimCamp)WorldObjectMaker.MakeWorldObject(def);
-
-            camp.Data = EnclaveGenerator.Generate();
-
-            int tile = TileFinder.RandomSettlementTileFor(
-                Faction.OfPlayer,
-                mustBeAutoChoosable: false
+        [DebugAction(
+            "Ideology Expanded: Enclaves",
+            "Give 2,000 test silver",
+            allowedGameStates = AllowedGameStates.PlayingOnMap
+        )]
+        public static void GiveTestSilver()
+        {
+            EnclaveDevTools.GiveTestSilver(
+                Find.CurrentMap?.Parent as PilgrimCamp
             );
+        }
 
-            camp.Tile = tile;
-
-            Find.WorldObjects.Add(camp);
-            Find.WorldSelector.Select(camp);
-
-            Messages.Message(
-                "A pilgrim camp has appeared on the world map.",
-                MessageTypeDefOf.PositiveEvent
+        [DebugAction(
+            "Ideology Expanded: Enclaves",
+            "Show current enclave test state",
+            allowedGameStates = AllowedGameStates.PlayingOnMap
+        )]
+        public static void ShowCurrentEnclaveTestState()
+        {
+            EnclaveDevTools.ShowTestState(
+                Find.CurrentMap?.Parent as PilgrimCamp
             );
         }
     }

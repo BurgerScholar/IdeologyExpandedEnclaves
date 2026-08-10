@@ -146,6 +146,33 @@ namespace IdeologyExpandedEnclaves
 
                 yield return new Command_Action
                 {
+                    defaultLabel = "DEV: Give 2,000 silver",
+                    defaultDesc =
+                        "Give a visiting player pawn 2,000 silver, " +
+                        "or place it on this enclave map if no player " +
+                        "pawn is present.",
+                    icon = BaseContent.BadTex,
+                    action = delegate
+                    {
+                        EnclaveDevTools.GiveTestSilver(this);
+                    }
+                };
+
+                yield return new Command_Action
+                {
+                    defaultLabel = "DEV: Show test state",
+                    defaultDesc =
+                        "Display and log this enclave's persistent data, " +
+                        "roles, candidates, and layout arrangement.",
+                    icon = BaseContent.BadTex,
+                    action = delegate
+                    {
+                        EnclaveDevTools.ShowTestState(this);
+                    }
+                };
+
+                yield return new Command_Action
+                {
                     defaultLabel = "DEV: Remove camp",
                     defaultDesc = "Remove this test pilgrim camp from the world.",
                     icon = BaseContent.BadTex,

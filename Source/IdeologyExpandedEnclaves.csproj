@@ -25,6 +25,7 @@
   <ItemGroup>
     <Compile Include="Core\**\*.cs" />
     <Compile Include="Data\**\*.cs" />
+    <Compile Include="Debug\**\*.cs" />
     <Compile Include="World\**\*.cs" />
     <Compile Include="Encounters\**\*.cs" />
     <Compile Include="Generation\**\*.cs" />
