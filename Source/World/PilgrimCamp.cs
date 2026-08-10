@@ -138,9 +138,9 @@ namespace IdeologyExpandedEnclaves
                     "Ideology: " + Data.Ideology + "\n" +
                     "Reputation: " +
                     Data.Reputation +
-                    " (" +
+                    " — " +
                     Data.ReputationTierLabel +
-                    ")\n" +
+                    "\n" +
                     "Hospitality: " + hospitality
                 )
             );

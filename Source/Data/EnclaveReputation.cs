@@ -3,7 +3,7 @@ namespace IdeologyExpandedEnclaves
     public enum EnclaveReputationTier
     {
         Hostile,
-        Distrusted,
+        Wary,
         Neutral,
         Friendly,
         Trusted,
@@ -16,11 +16,11 @@ namespace IdeologyExpandedEnclaves
         public const int Maximum = 100;
         public const int InitialValue = 0;
 
-        public const int HostileMaximum = -51;
-        public const int DistrustedMaximum = -11;
-        public const int NeutralMaximum = 10;
-        public const int FriendlyMaximum = 50;
-        public const int TrustedMaximum = 80;
+        public const int HostileMaximum = -26;
+        public const int WaryMaximum = -1;
+        public const int NeutralMaximum = 24;
+        public const int FriendlyMaximum = 49;
+        public const int TrustedMaximum = 74;
 
         public static int Clamp(long value)
         {
@@ -46,9 +46,9 @@ namespace IdeologyExpandedEnclaves
                 return EnclaveReputationTier.Hostile;
             }
 
-            if (reputation <= DistrustedMaximum)
+            if (reputation <= WaryMaximum)
             {
-                return EnclaveReputationTier.Distrusted;
+                return EnclaveReputationTier.Wary;
             }
 
             if (reputation <= NeutralMaximum)
