@@ -113,12 +113,73 @@ namespace IdeologyExpandedEnclaves
             {
                 yield return new Command_Action
                 {
+                    defaultLabel = "DEV: Set reputation",
+                    defaultDesc =
+                        "Set this enclave's reputation to a " +
+                        "representative value for tier testing.",
+                    icon = BaseContent.BadTex,
+                    action = ShowDevReputationMenu
+                };
+
+                yield return new Command_Action
+                {
                     defaultLabel = "DEV: Remove camp",
                     defaultDesc = "Remove this test pilgrim camp from the world.",
                     icon = BaseContent.BadTex,
                     action = RemoveCamp
                 };
             }
+        }
+
+        private void ShowDevReputationMenu()
+        {
+            EnsureDataExists();
+
+            List<FloatMenuOption> options =
+                new List<FloatMenuOption>
+                {
+                    CreateDevReputationOption("Hostile", -50),
+                    CreateDevReputationOption("Wary", -10),
+                    CreateDevReputationOption("Neutral", 0),
+                    CreateDevReputationOption("Friendly", 30),
+                    CreateDevReputationOption("Trusted", 60),
+                    CreateDevReputationOption("Revered", 90)
+                };
+
+            Find.WindowStack.Add(new FloatMenu(options));
+        }
+
+        private FloatMenuOption CreateDevReputationOption(
+            string tierLabel,
+            int value
+        )
+        {
+            return new FloatMenuOption(
+                tierLabel + ": " + value,
+                delegate
+                {
+                    SetDevReputation(value);
+                }
+            );
+        }
+
+        private void SetDevReputation(int value)
+        {
+            EnsureDataExists();
+
+            Data.SetReputation(
+                value,
+                "developer reputation test control"
+            );
+
+            Messages.Message(
+                "Enclave reputation set to " +
+                Data.Reputation +
+                " — " +
+                Data.ReputationTierLabel +
+                ".",
+                MessageTypeDefOf.NeutralEvent
+            );
         }
 
         private void ShowEnclaveInformation()

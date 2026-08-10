@@ -21,6 +21,77 @@ namespace IdeologyExpandedEnclaves
             return BaseRecruitmentCost;
         }
 
+        public static int GetReputationDiscountPercent(
+            PilgrimCamp camp
+        )
+        {
+            if (camp?.Data == null)
+            {
+                return 0;
+            }
+
+            switch (camp.Data.ReputationTier)
+            {
+                case EnclaveReputationTier.Friendly:
+                    return 10;
+                case EnclaveReputationTier.Trusted:
+                    return 20;
+                case EnclaveReputationTier.Revered:
+                    return 30;
+                default:
+                    return 0;
+            }
+        }
+
+        public static int GetEffectiveRecruitmentCost(
+            PilgrimCamp camp,
+            Pawn candidate
+        )
+        {
+            int baseCost = Math.Max(0, GetRecruitmentCost(candidate));
+            int discountPercent =
+                GetReputationDiscountPercent(camp);
+            long discountedCost =
+                (long)baseCost * (100 - discountPercent);
+
+            return (int)((discountedCost + 99) / 100);
+        }
+
+        public static bool RecruitmentIsAvailable(
+            PilgrimCamp camp,
+            out string unavailableReason
+        )
+        {
+            unavailableReason = null;
+
+            if (camp?.Data == null)
+            {
+                unavailableReason =
+                    "The enclave reputation data is unavailable.";
+                return false;
+            }
+
+            EnclaveReputationTier tier = camp.Data.ReputationTier;
+
+            if (
+                tier == EnclaveReputationTier.Hostile ||
+                tier == EnclaveReputationTier.Wary
+            )
+            {
+                unavailableReason =
+                    "Recruitment unavailable. This enclave does not " +
+                    "trust you enough to recruit its members. " +
+                    "Current reputation: " +
+                    camp.Data.Reputation +
+                    " — " +
+                    tier +
+                    ".";
+                return false;
+            }
+
+            return true;
+        }
+
         public static int GetAvailableSilver(PilgrimCamp camp)
         {
             Map map = camp?.Map;
@@ -49,13 +120,32 @@ namespace IdeologyExpandedEnclaves
         public static bool TryRecruit(
             PilgrimCamp camp,
             Pawn candidate,
+            int confirmedCost,
             out string resultMessage
         )
         {
-            int cost = GetRecruitmentCost(candidate);
-
             if (!ValidateRecruitment(camp, candidate, out resultMessage))
             {
+                return false;
+            }
+
+            if (!RecruitmentIsAvailable(camp, out resultMessage))
+            {
+                return false;
+            }
+
+            EnclaveReputationTier reputationTier =
+                camp.Data.ReputationTier;
+            int baseCost = GetRecruitmentCost(candidate);
+            int cost = GetEffectiveRecruitmentCost(camp, candidate);
+
+            if (confirmedCost != cost)
+            {
+                resultMessage =
+                    "The recruitment cost changed with the enclave's " +
+                    "reputation. The current cost is " +
+                    cost +
+                    " silver. Review and confirm the updated price.";
                 return false;
             }
 
@@ -105,7 +195,11 @@ namespace IdeologyExpandedEnclaves
                 candidate.GetUniqueLoadID() +
                 ") from " +
                 (camp.Data?.Name ?? "an enclave") +
-                " for " +
+                ". Reputation tier: " +
+                reputationTier +
+                ". Base price: " +
+                baseCost +
+                " silver. Final price: " +
                 cost +
                 " silver. Remaining enclave population: " +
                 camp.Data.Population +

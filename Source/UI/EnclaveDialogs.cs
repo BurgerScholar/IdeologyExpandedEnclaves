@@ -49,7 +49,7 @@ namespace IdeologyExpandedEnclaves
 
     public class Dialog_EnclaveRecruitmentCandidates : Window
     {
-        private const float HeaderHeight = 82f;
+        private const float HeaderHeight = 150f;
         private const float CandidateHeight = 190f;
         private const float CandidateSpacing = 10f;
 
@@ -93,6 +93,15 @@ namespace IdeologyExpandedEnclaves
                 camp?.RecruitmentCandidates?.Candidates?.Count ?? 0;
             int unavailableCount =
                 Mathf.Max(0, storedCount - availableCandidates.Count);
+            string recruitmentUnavailableReason;
+            bool recruitmentAvailable =
+                EnclaveRecruitmentService.RecruitmentIsAvailable(
+                    camp,
+                    out recruitmentUnavailableReason
+                );
+            int discountPercent =
+                EnclaveRecruitmentService
+                    .GetReputationDiscountPercent(camp);
 
             Widgets.Label(
                 new Rect(inRect.x, inRect.y + 34f, inRect.width, 24f),
@@ -103,6 +112,24 @@ namespace IdeologyExpandedEnclaves
             );
             Widgets.Label(
                 new Rect(inRect.x, inRect.y + 57f, inRect.width, 24f),
+                "Reputation: " +
+                (camp?.Data?.Reputation ?? 0) +
+                " — " +
+                (camp?.Data?.ReputationTierLabel ?? "Unknown")
+            );
+            Widgets.Label(
+                new Rect(inRect.x, inRect.y + 80f, inRect.width, 42f),
+                recruitmentAvailable
+                    ? discountPercent > 0
+                        ? camp.Data.ReputationTierLabel +
+                            " reputation discount: " +
+                            discountPercent +
+                            "%"
+                        : "Recruitment available at the standard cost."
+                    : recruitmentUnavailableReason
+            );
+            Widgets.Label(
+                new Rect(inRect.x, inRect.y + 123f, inRect.width, 24f),
                 "Available candidates: " +
                 availableCandidates.Count +
                 (unavailableCount > 0
@@ -270,24 +297,55 @@ namespace IdeologyExpandedEnclaves
             );
 
             int cost =
-                EnclaveRecruitmentService.GetRecruitmentCost(candidate);
+                EnclaveRecruitmentService.GetEffectiveRecruitmentCost(
+                    camp,
+                    candidate
+                );
+            int discountPercent =
+                EnclaveRecruitmentService
+                    .GetReputationDiscountPercent(camp);
+            string unavailableReason;
+            bool recruitmentAvailable =
+                EnclaveRecruitmentService.RecruitmentIsAvailable(
+                    camp,
+                    out unavailableReason
+                );
             int availableSilver =
                 EnclaveRecruitmentService.GetAvailableSilver(camp);
             bool canAfford = availableSilver >= cost;
-            string recruitLabel =
-                "Recruit — " +
-                cost +
-                " silver" +
-                (canAfford
-                    ? string.Empty
-                    : "\nInsufficient silver");
+            bool canRecruit = recruitmentAvailable && canAfford;
+            string recruitLabel;
+
+            if (!recruitmentAvailable)
+            {
+                recruitLabel =
+                    "Recruitment unavailable\n" +
+                    (camp?.Data?.ReputationTierLabel ?? "Unknown") +
+                    " reputation";
+            }
+            else
+            {
+                recruitLabel =
+                    "Recruit — " +
+                    cost +
+                    " silver" +
+                    (!canAfford
+                        ? "\nInsufficient silver"
+                        : discountPercent > 0
+                        ? "\n" +
+                            camp.Data.ReputationTierLabel +
+                            " discount: " +
+                            discountPercent +
+                            "%"
+                        : string.Empty);
+            }
 
             if (Widgets.ButtonText(
                 recruitRect,
                 recruitLabel,
                 true,
                 true,
-                canAfford
+                canRecruit
             ))
             {
                 ConfirmRecruitment(candidate, cost);
@@ -295,11 +353,20 @@ namespace IdeologyExpandedEnclaves
 
             TooltipHandler.TipRegion(
                 recruitRect,
-                canAfford
-                    ? "Recruit this candidate for " +
+                !recruitmentAvailable
+                    ? unavailableReason
+                    : canAfford
+                        ? "Recruit this candidate for " +
                         cost +
-                        " silver from the visiting group's inventories."
-                    : "Insufficient silver: " +
+                        " silver from the visiting group's inventories." +
+                        (discountPercent > 0
+                            ? " " +
+                                camp.Data.ReputationTierLabel +
+                                " reputation discount: " +
+                                discountPercent +
+                                "%."
+                            : string.Empty)
+                        : "Insufficient silver: " +
                         availableSilver +
                         " of " +
                         cost +
@@ -328,6 +395,7 @@ namespace IdeologyExpandedEnclaves
                             EnclaveRecruitmentService.TryRecruit(
                                 camp,
                                 candidate,
+                                cost,
                                 out resultMessage
                             );
 
