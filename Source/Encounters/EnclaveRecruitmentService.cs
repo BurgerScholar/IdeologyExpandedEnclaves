@@ -177,6 +177,7 @@ namespace IdeologyExpandedEnclaves
             lord?.RemovePawn(candidate);
             candidate.SetFaction(Faction.OfPlayer);
             camp.RecruitmentCandidates.RemoveCandidate(candidate);
+            camp.PawnMembers?.Remove(candidate);
             camp.Data.Population = Math.Max(
                 0,
                 camp.Data.Population - 1

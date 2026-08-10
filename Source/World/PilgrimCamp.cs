@@ -14,6 +14,10 @@ namespace IdeologyExpandedEnclaves
             new EnclaveRecruitmentCandidates();
         public EnclaveVisitingGroup VisitingGroup =
             new EnclaveVisitingGroup();
+        public EnclaveHarmPenaltyTracker HarmPenalties =
+            new EnclaveHarmPenaltyTracker();
+        public EnclavePawnMembers PawnMembers =
+            new EnclavePawnMembers();
 
         public override void ExposeData()
         {
@@ -26,6 +30,8 @@ namespace IdeologyExpandedEnclaves
                 "recruitmentCandidates"
             );
             Scribe_Deep.Look(ref VisitingGroup, "visitingGroup");
+            Scribe_Deep.Look(ref HarmPenalties, "harmPenalties");
+            Scribe_Deep.Look(ref PawnMembers, "pawnMembers");
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
@@ -50,6 +56,16 @@ namespace IdeologyExpandedEnclaves
                     VisitingGroup = new EnclaveVisitingGroup();
                 }
 
+                if (HarmPenalties == null)
+                {
+                    HarmPenalties = new EnclaveHarmPenaltyTracker();
+                }
+
+                if (PawnMembers == null)
+                {
+                    PawnMembers = new EnclavePawnMembers();
+                }
+
                 if (!VisitingGroup.HasStoredMembers && Map != null)
                 {
                     VisitingGroup.RecoverFromMap(Map);
@@ -63,6 +79,17 @@ namespace IdeologyExpandedEnclaves
 
                 EnclaveTradeService.SuppressVanillaTradeOption(
                     PawnRoles.GetPawn(EnclavePawnRole.Trader)
+                );
+
+                PilgrimCamp loadedCamp = this;
+
+                LongEventHandler.ExecuteWhenFinished(
+                    delegate
+                    {
+                        EnclaveFactionUtility.EnsureCampFaction(
+                            loadedCamp
+                        );
+                    }
                 );
             }
         }

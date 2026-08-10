@@ -252,6 +252,26 @@ namespace IdeologyExpandedEnclaves
             }
         }
 
+        internal static bool RestoreTraderAfterFactionChange(
+            PilgrimCamp camp
+        )
+        {
+            Pawn trader = camp?.PawnRoles?.GetPawn(
+                EnclavePawnRole.Trader
+            );
+
+            if (
+                trader == null ||
+                trader.Destroyed ||
+                trader.Dead
+            )
+            {
+                return true;
+            }
+
+            return EnsureTraderTracker(trader);
+        }
+
         private static bool EnsureTraderTracker(Pawn trader)
         {
             if (trader?.mindState == null)

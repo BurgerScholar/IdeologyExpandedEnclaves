@@ -212,6 +212,30 @@ namespace IdeologyExpandedEnclaves
                 " — " +
                 camp.Data.ReputationTierLabel
             );
+            Pawn factionPawn =
+                camp.PawnRoles?.GetPawn(EnclavePawnRole.Leader) ??
+                camp.PawnRoles?.GetPawn(EnclavePawnRole.Trader) ??
+                camp.PawnRoles?.GetPawn(EnclavePawnRole.Recruiter);
+            Faction mechanicalFaction = factionPawn?.Faction;
+            report.AppendLine(
+                "Mechanical faction: " +
+                (mechanicalFaction == null
+                    ? "Unavailable"
+                    : mechanicalFaction.Name +
+                        " [" +
+                        mechanicalFaction.def.defName +
+                        "]" +
+                        ", hidden=" +
+                        mechanicalFaction.Hidden +
+                        ", goodwill=" +
+                        mechanicalFaction.HasGoodwill +
+                        ", player relation=" +
+                        mechanicalFaction.PlayerRelationKind)
+            );
+            report.AppendLine(
+                "Registered enclave pawns: " +
+                (camp.PawnMembers?.Members?.Count ?? 0)
+            );
             report.AppendLine(
                 "Leader: " +
                 DescribePawn(camp.PawnRoles?.GetPawn(EnclavePawnRole.Leader))

@@ -47,15 +47,13 @@ namespace IdeologyExpandedEnclaves
 );
 
             Faction pilgrimFaction =
-                Find.FactionManager.FirstFactionOfDef(
-                    FactionDefOf.OutlanderCivil
-                );
+                EnclaveFactionUtility.GetOrCreateFaction();
 
             if (pilgrimFaction == null)
             {
                 Log.Error(
                     "[Ideology Expanded: Enclaves] " +
-                    "No civil outlander faction exists."
+                    "The dedicated enclave faction is unavailable."
                 );
 
                 return;
@@ -97,6 +95,12 @@ namespace IdeologyExpandedEnclaves
 
             if (pilgrims.Count > 0)
             {
+                if (camp.PawnMembers == null)
+                {
+                    camp.PawnMembers = new EnclavePawnMembers();
+                }
+
+                camp.PawnMembers.SetMembers(pilgrims);
                 AssignLeader(camp, pilgrims);
                 AssignTrader(camp, pilgrims, map);
                 AssignRecruiter(camp, pilgrims);

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <FactionDef ParentName="OutlanderFactionBase">
+    <defName>IEE_EnclavePilgrims</defName>
+    <label>enclave pilgrims</label>
+    <description>A hidden mechanical faction used only to support independent Pilgrim Camp communities.</description>
+    <pawnSingular>enclave pilgrim</pawnSingular>
+    <pawnsPlural>enclave pilgrims</pawnsPlural>
+    <fixedName>Enclave Pilgrims</fixedName>
+    <basicMemberKind>Villager</basicMemberKind>
+    <hidden>true</hidden>
+    <displayInFactionSelection>false</displayInFactionSelection>
+    <canMakeRandomly>false</canMakeRandomly>
+    <requiredCountAtGameStart>1</requiredCountAtGameStart>
+    <maxCountAtGameStart>1</maxCountAtGameStart>
+    <maxConfigurableAtWorldCreation>1</maxConfigurableAtWorldCreation>
+    <settlementGenerationWeight>0</settlementGenerationWeight>
+    <canGenerateQuestSites>false</canGenerateQuestSites>
+    <raidsForbidden>true</raidsForbidden>
+    <canSiege>false</canSiege>
+    <canStageAttacks>false</canStageAttacks>
+    <canRequestMilitaryAid>false</canRequestMilitaryAid>
+    <canRequestOrbitalTrader>false</canRequestOrbitalTrader>
+    <canRequestTraders>false</canRequestTraders>
+    <generateNewLeaderFromMapMembersOnly>true</generateNewLeaderFromMapMembersOnly>
+    <raidCommonalityFromPointsCurve>
+      <points>
+        <li>(0, 0)</li>
+      </points>
+    </raidCommonalityFromPointsCurve>
+  </FactionDef>
+</Defs>
