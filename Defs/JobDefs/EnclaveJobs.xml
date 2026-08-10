@@ -10,4 +10,9 @@
     <driverClass>IdeologyExpandedEnclaves.JobDriver_TradeWithEnclaveTrader</driverClass>
     <reportString>Approaching the enclave Trader.</reportString>
   </JobDef>
+  <JobDef>
+    <defName>IEE_DonateSilverToEnclave</defName>
+    <driverClass>IdeologyExpandedEnclaves.JobDriver_DonateSilverToEnclave</driverClass>
+    <reportString>Approaching the enclave Leader to donate silver.</reportString>
+  </JobDef>
 </Defs>

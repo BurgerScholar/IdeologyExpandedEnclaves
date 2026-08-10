@@ -45,6 +45,212 @@ namespace IdeologyExpandedEnclaves
                 )
             );
         }
+
+        public static void OpenSilverDonation(
+            PilgrimCamp camp,
+            Pawn leader
+        )
+        {
+            string failureReason;
+
+            if (
+                !EnclaveDonationService.DonationContactIsValid(
+                    camp,
+                    leader,
+                    out failureReason
+                )
+            )
+            {
+                Messages.Message(
+                    failureReason,
+                    MessageTypeDefOf.RejectInput
+                );
+                return;
+            }
+
+            Log.Message(
+                "[IEE] Opened silver donation dialog for " +
+                (camp.Data?.Name ?? "an enclave") +
+                " with Leader " +
+                leader.LabelShort +
+                " (" +
+                leader.GetUniqueLoadID() +
+                ")."
+            );
+
+            Find.WindowStack.Add(
+                new Dialog_EnclaveSilverDonation(camp, leader)
+            );
+        }
+    }
+
+    public class Dialog_EnclaveSilverDonation : Window
+    {
+        private readonly PilgrimCamp camp;
+        private readonly Pawn leader;
+
+        public override Vector2 InitialSize => new Vector2(620f, 470f);
+
+        public Dialog_EnclaveSilverDonation(
+            PilgrimCamp camp,
+            Pawn leader
+        )
+        {
+            this.camp = camp;
+            this.leader = leader;
+
+            doCloseX = true;
+            doCloseButton = true;
+            closeOnAccept = false;
+            closeOnCancel = true;
+            absorbInputAroundWindow = true;
+            onlyOneOfTypeAllowed = true;
+        }
+
+        public override void DoWindowContents(Rect inRect)
+        {
+            Text.Font = GameFont.Medium;
+            Widgets.Label(
+                new Rect(inRect.x, inRect.y, inRect.width, 32f),
+                "Donate Silver to Enclave"
+            );
+
+            Text.Font = GameFont.Small;
+
+            string failureReason;
+            bool contactValid =
+                EnclaveDonationService.DonationContactIsValid(
+                    camp,
+                    leader,
+                    out failureReason
+                );
+            int reputation = camp?.Data?.Reputation ?? 0;
+            bool atMaximum =
+                reputation >= EnclaveReputation.Maximum;
+            int availableSilver = contactValid
+                ? EnclaveDonationService.GetAvailableSilver(camp)
+                : 0;
+
+            Widgets.Label(
+                new Rect(inRect.x, inRect.y + 38f, inRect.width, 24f),
+                "Enclave: " +
+                (camp?.Data?.Name ?? "Unavailable") +
+                "    Leader: " +
+                (leader?.LabelShort ?? "Unavailable")
+            );
+            Widgets.Label(
+                new Rect(inRect.x, inRect.y + 64f, inRect.width, 24f),
+                "Reputation: " +
+                reputation +
+                " — " +
+                (camp?.Data?.ReputationTierLabel ?? "Unknown")
+            );
+            Widgets.Label(
+                new Rect(inRect.x, inRect.y + 90f, inRect.width, 24f),
+                "Visiting-group silver: " +
+                availableSilver.ToString("N0")
+            );
+
+            string statusText = contactValid
+                ? atMaximum
+                    ? "Reputation is already at +100. No silver will " +
+                        "be consumed."
+                    : "Choose a donation from the visiting caravan's " +
+                        "inventories."
+                : failureReason;
+
+            Widgets.Label(
+                new Rect(inRect.x, inRect.y + 118f, inRect.width, 42f),
+                statusText
+            );
+
+            float y = inRect.y + 166f;
+
+            foreach (
+                EnclaveDonationOption option in
+                EnclaveDonationService.Options
+            )
+            {
+                Rect buttonRect = new Rect(
+                    inRect.x,
+                    y,
+                    inRect.width,
+                    44f
+                );
+                bool canAfford =
+                    availableSilver >= option.SilverAmount;
+                bool enabled =
+                    contactValid && !atMaximum && canAfford;
+                int effectiveGain = Mathf.Min(
+                    option.ReputationGain,
+                    Mathf.Max(
+                        0,
+                        EnclaveReputation.Maximum - reputation
+                    )
+                );
+                string label =
+                    "Donate " +
+                    option.SilverAmount.ToString("N0") +
+                    " silver  —  +" +
+                    effectiveGain +
+                    " reputation" +
+                    (effectiveGain < option.ReputationGain
+                        ? " (normally +" +
+                            option.ReputationGain +
+                            "; capped)"
+                        : string.Empty);
+
+                if (
+                    Widgets.ButtonText(
+                        buttonRect,
+                        label,
+                        true,
+                        true,
+                        enabled
+                    )
+                )
+                {
+                    string resultMessage;
+                    bool donated = EnclaveDonationService.TryDonate(
+                        camp,
+                        leader,
+                        option.SilverAmount,
+                        out resultMessage
+                    );
+
+                    Messages.Message(
+                        resultMessage,
+                        donated
+                            ? MessageTypeDefOf.PositiveEvent
+                            : MessageTypeDefOf.RejectInput
+                    );
+                }
+
+                TooltipHandler.TipRegion(
+                    buttonRect,
+                    !contactValid
+                        ? failureReason
+                        : atMaximum
+                            ? "Reputation is already at the +100 cap; " +
+                                "no silver will be consumed."
+                            : canAfford
+                                ? "Consume exactly " +
+                                    option.SilverAmount.ToString("N0") +
+                                    " silver from the visiting group's " +
+                                    "inventories for +" +
+                                    effectiveGain +
+                                    " reputation. Reputation gains are " +
+                                    "clamped at +100."
+                                : "Insufficient visiting-group silver: " +
+                                    availableSilver.ToString("N0") +
+                                    " of " +
+                                    option.SilverAmount.ToString("N0") +
+                                    " available."
+                );
+
+                y += 50f;
+            }
+        }
     }
 
     public class Dialog_EnclaveRecruitmentCandidates : Window

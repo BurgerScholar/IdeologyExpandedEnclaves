@@ -5,22 +5,7 @@ using Verse.AI;
 
 namespace IdeologyExpandedEnclaves
 {
-    [DefOf]
-    public static class EnclaveJobDefOf
-    {
-        public static JobDef IEE_ViewEnclaveRecruitmentCandidates;
-        public static JobDef IEE_TradeWithEnclaveTrader;
-        public static JobDef IEE_DonateSilverToEnclave;
-
-        static EnclaveJobDefOf()
-        {
-            DefOfHelper.EnsureInitializedInCtor(
-                typeof(EnclaveJobDefOf)
-            );
-        }
-    }
-
-    public class FloatMenuOptionProvider_EnclaveRecruiter
+    public class FloatMenuOptionProvider_EnclaveDonation
         : FloatMenuOptionProvider
     {
         protected override bool Drafted => true;
@@ -36,7 +21,7 @@ namespace IdeologyExpandedEnclaves
 
             if (
                 camp == null ||
-                camp.PawnRoles?.GetPawn(EnclavePawnRole.Recruiter) !=
+                camp.PawnRoles?.GetPawn(EnclavePawnRole.Leader) !=
                     clickedPawn
             )
             {
@@ -56,9 +41,8 @@ namespace IdeologyExpandedEnclaves
             }
 
             string label =
-                "Ask " +
-                clickedPawn.LabelShort +
-                " about recruitment";
+                "Donate silver to " +
+                (camp.Data?.Name ?? "the enclave");
 
             if (
                 !colonist.CanReach(
@@ -72,7 +56,6 @@ namespace IdeologyExpandedEnclaves
                     label + ": No path",
                     null
                 );
-
                 yield break;
             }
 
@@ -81,8 +64,7 @@ namespace IdeologyExpandedEnclaves
                 delegate
                 {
                     Job job = JobMaker.MakeJob(
-                        EnclaveJobDefOf
-                            .IEE_ViewEnclaveRecruitmentCandidates,
+                        EnclaveJobDefOf.IEE_DonateSilverToEnclave,
                         clickedPawn
                     );
                     job.playerForced = true;
@@ -92,8 +74,7 @@ namespace IdeologyExpandedEnclaves
         }
     }
 
-    public class JobDriver_ViewEnclaveRecruitmentCandidates
-        : JobDriver
+    public class JobDriver_DonateSilverToEnclave : JobDriver
     {
         public override bool TryMakePreToilReservations(
             bool errorOnFailed
@@ -110,35 +91,31 @@ namespace IdeologyExpandedEnclaves
                 TargetIndex.A,
                 PathEndMode.Touch
             );
-            yield return Toils_General.Do(OpenCandidateBrowser);
+            yield return Toils_General.Do(OpenDonationDialog);
         }
 
-        private void OpenCandidateBrowser()
+        private void OpenDonationDialog()
         {
-            Pawn recruiter = TargetPawnA;
+            Pawn leader = TargetPawnA;
             PilgrimCamp camp = pawn?.Map?.Parent as PilgrimCamp;
+            string failureReason;
 
             if (
-                camp == null ||
-                recruiter == null ||
-                recruiter.Dead ||
-                !recruiter.Spawned ||
-                camp.PawnRoles?.GetPawn(EnclavePawnRole.Recruiter) !=
-                    recruiter
+                !EnclaveDonationService.DonationContactIsValid(
+                    camp,
+                    leader,
+                    out failureReason
+                )
             )
             {
                 Messages.Message(
-                    "The enclave Recruiter is no longer available.",
+                    failureReason,
                     MessageTypeDefOf.RejectInput
                 );
-
                 return;
             }
 
-            EnclaveDialogs.OpenRecruitmentCandidates(
-                camp,
-                recruiter
-            );
+            EnclaveDialogs.OpenSilverDonation(camp, leader);
         }
     }
 }

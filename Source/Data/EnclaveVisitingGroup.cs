@@ -7,6 +7,12 @@ namespace IdeologyExpandedEnclaves
 {
     public class EnclaveVisitingGroup : IExposable
     {
+        private sealed class InventoryPayment
+        {
+            public Pawn Holder;
+            public int Count;
+        }
+
         private List<Pawn> members = new List<Pawn>();
 
         public IReadOnlyList<Pawn> Members => members;
@@ -63,6 +69,16 @@ namespace IdeologyExpandedEnclaves
             return new List<Pawn>(ActiveMembers(camp));
         }
 
+        public bool HasActiveMembers(PilgrimCamp camp)
+        {
+            foreach (Pawn pawn in ActiveMembers(camp))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         public IEnumerable<Thing> InventoryThings(PilgrimCamp camp)
         {
             foreach (Pawn pawn in ActiveMembers(camp))
@@ -104,6 +120,119 @@ namespace IdeologyExpandedEnclaves
             }
 
             return false;
+        }
+
+        public int CountInventoryThing(
+            PilgrimCamp camp,
+            ThingDef thingDef
+        )
+        {
+            if (thingDef == null)
+            {
+                return 0;
+            }
+
+            long total = 0;
+
+            foreach (Pawn pawn in ActiveMembers(camp))
+            {
+                if (pawn.inventory == null)
+                {
+                    continue;
+                }
+
+                total += pawn.inventory.Count(thingDef);
+
+                if (total >= int.MaxValue)
+                {
+                    return int.MaxValue;
+                }
+            }
+
+            return (int)total;
+        }
+
+        public bool TryConsumeInventoryThing(
+            PilgrimCamp camp,
+            ThingDef thingDef,
+            int count
+        )
+        {
+            if (thingDef == null || count < 0)
+            {
+                return false;
+            }
+
+            if (count == 0)
+            {
+                return true;
+            }
+
+            List<InventoryPayment> paymentPlan =
+                new List<InventoryPayment>();
+            int remaining = count;
+
+            foreach (Pawn pawn in ActiveMembers(camp))
+            {
+                if (pawn.inventory == null)
+                {
+                    continue;
+                }
+
+                int available = pawn.inventory.Count(thingDef);
+
+                if (available <= 0)
+                {
+                    continue;
+                }
+
+                int take = available < remaining
+                    ? available
+                    : remaining;
+
+                paymentPlan.Add(
+                    new InventoryPayment
+                    {
+                        Holder = pawn,
+                        Count = take
+                    }
+                );
+                remaining -= take;
+
+                if (remaining == 0)
+                {
+                    break;
+                }
+            }
+
+            if (remaining != 0)
+            {
+                return false;
+            }
+
+            foreach (InventoryPayment payment in paymentPlan)
+            {
+                if (
+                    !IsActiveMember(camp, payment.Holder) ||
+                    payment.Holder.inventory == null ||
+                    payment.Holder.inventory.Count(thingDef) <
+                        payment.Count
+                )
+                {
+                    return false;
+                }
+            }
+
+            foreach (InventoryPayment payment in paymentPlan)
+            {
+                payment.Holder.inventory.RemoveCount(
+                    thingDef,
+                    payment.Count,
+                    destroy: true
+                );
+            }
+
+            return true;
         }
 
         public void ExposeData()
