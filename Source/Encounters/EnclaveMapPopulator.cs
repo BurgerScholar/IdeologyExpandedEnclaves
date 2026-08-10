@@ -318,6 +318,7 @@ namespace IdeologyExpandedEnclaves
 
             if (trader.trader.traderKind == traderKind)
             {
+                EnclaveTradeService.SuppressVanillaTradeOption(trader);
                 Log.Message(
                     "[IEE] Trader stock already initialized for " +
                     trader.LabelShort +
@@ -386,6 +387,8 @@ namespace IdeologyExpandedEnclaves
                 itemCount +
                 " total items)."
             );
+
+            EnclaveTradeService.SuppressVanillaTradeOption(trader);
 
             return true;
         }

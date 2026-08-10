@@ -5,4 +5,9 @@
     <driverClass>IdeologyExpandedEnclaves.JobDriver_ViewEnclaveRecruitmentCandidates</driverClass>
     <reportString>Approaching the enclave Recruiter.</reportString>
   </JobDef>
+  <JobDef>
+    <defName>IEE_TradeWithEnclaveTrader</defName>
+    <driverClass>IdeologyExpandedEnclaves.JobDriver_TradeWithEnclaveTrader</driverClass>
+    <reportString>Approaching the enclave Trader.</reportString>
+  </JobDef>
 </Defs>

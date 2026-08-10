@@ -61,6 +61,21 @@ namespace IdeologyExpandedEnclaves
                         EnclaveMapPopulator.PopulateNewCamp(map, camp);
                     }
 
+                    if (camp.VisitingGroup == null)
+                    {
+                        camp.VisitingGroup = new EnclaveVisitingGroup();
+                    }
+
+                    camp.VisitingGroup.Capture(caravan);
+
+                    Log.Message(
+                        "[IEE] Captured " +
+                        camp.VisitingGroup.Members.Count +
+                        " visiting caravan members for " +
+                        (camp.Data?.Name ?? "an enclave") +
+                        "."
+                    );
+
                     CaravanEnterMapUtility.Enter(
                         caravan,
                         map,

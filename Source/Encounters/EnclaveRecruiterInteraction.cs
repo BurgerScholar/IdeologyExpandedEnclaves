@@ -9,6 +9,7 @@ namespace IdeologyExpandedEnclaves
     public static class EnclaveJobDefOf
     {
         public static JobDef IEE_ViewEnclaveRecruitmentCandidates;
+        public static JobDef IEE_TradeWithEnclaveTrader;
 
         static EnclaveJobDefOf()
         {

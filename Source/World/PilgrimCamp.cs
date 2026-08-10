@@ -12,6 +12,8 @@ namespace IdeologyExpandedEnclaves
             new EnclavePawnRoleAssignments();
         public EnclaveRecruitmentCandidates RecruitmentCandidates =
             new EnclaveRecruitmentCandidates();
+        public EnclaveVisitingGroup VisitingGroup =
+            new EnclaveVisitingGroup();
 
         public override void ExposeData()
         {
@@ -23,6 +25,7 @@ namespace IdeologyExpandedEnclaves
                 ref RecruitmentCandidates,
                 "recruitmentCandidates"
             );
+            Scribe_Deep.Look(ref VisitingGroup, "visitingGroup");
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
@@ -41,6 +44,26 @@ namespace IdeologyExpandedEnclaves
                     RecruitmentCandidates =
                         new EnclaveRecruitmentCandidates();
                 }
+
+                if (VisitingGroup == null)
+                {
+                    VisitingGroup = new EnclaveVisitingGroup();
+                }
+
+                if (!VisitingGroup.HasStoredMembers && Map != null)
+                {
+                    VisitingGroup.RecoverFromMap(Map);
+
+                    Log.Message(
+                        "[IEE] Recovered visiting-group references for " +
+                        (Data?.Name ?? "an enclave") +
+                        " from its loaded map."
+                    );
+                }
+
+                EnclaveTradeService.SuppressVanillaTradeOption(
+                    PawnRoles.GetPawn(EnclavePawnRole.Trader)
+                );
             }
         }
 
@@ -217,6 +240,21 @@ namespace IdeologyExpandedEnclaves
 
         private void HandleTradeGizmo()
         {
+            EnsureDataExists();
+
+            string unavailableReason;
+
+            if (
+                !EnclaveTradeService.TradingIsAvailable(
+                    this,
+                    out unavailableReason
+                )
+            )
+            {
+                EnclaveTradeService.NotifyTradeBlocked(this);
+                return;
+            }
+
             Map map = Map;
 
             if (map == null)
@@ -238,12 +276,22 @@ namespace IdeologyExpandedEnclaves
                 trader.Map == map
             )
             {
+                int bonusPercent =
+                    EnclaveTradeService.GetTradeBonusPercent(this);
+
                 CameraJumper.TryJump(trader.Position, map);
                 Messages.Message(
                     "Enclave Trader located: " +
                     trader.LabelShort +
                     ". Select a colonist and use the normal Trade " +
-                    "interaction.",
+                    "interaction." +
+                    (bonusPercent > 0
+                        ? " " +
+                            Data.ReputationTierLabel +
+                            " reputation trade bonus: " +
+                            bonusPercent +
+                            "%."
+                        : string.Empty),
                     trader,
                     MessageTypeDefOf.NeutralEvent
                 );
