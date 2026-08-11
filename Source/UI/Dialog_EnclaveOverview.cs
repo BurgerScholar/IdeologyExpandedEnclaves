@@ -203,12 +203,24 @@ namespace IdeologyExpandedEnclaves
 
         private List<string> BuildLocalStatusLines()
         {
-            return new List<string>
+            bool locallyHostile =
+                EnclaveRelationshipUtility.IsLocallyHostile(camp);
+            List<string> lines = new List<string>
             {
-                EnclaveRelationshipUtility.IsLocallyHostile(camp)
+                locallyHostile
                     ? "Local Status: Hostile"
                     : "Local Status: Peaceful"
             };
+
+            if (locallyHostile)
+            {
+                lines.Add(
+                    "Members of this enclave will attack visiting " +
+                    "colonists and caravan animals."
+                );
+            }
+
+            return lines;
         }
 
         private List<string> BuildNearbyInfluenceLines(

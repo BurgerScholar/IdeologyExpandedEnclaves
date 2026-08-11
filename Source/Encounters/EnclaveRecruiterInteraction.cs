@@ -59,6 +59,30 @@ namespace IdeologyExpandedEnclaves
                 "Ask " +
                 clickedPawn.LabelShort +
                 " about recruitment";
+            string unavailableReason;
+
+            if (
+                !EnclaveRecruitmentService.RecruitmentIsAvailable(
+                    camp,
+                    out unavailableReason
+                )
+            )
+            {
+                yield return new FloatMenuOption(
+                    "Recruitment unavailable (" +
+                    (camp.Data?.ReputationTierLabel ?? "Unknown") +
+                    ")",
+                    delegate
+                    {
+                        Messages.Message(
+                            unavailableReason,
+                            clickedPawn,
+                            MessageTypeDefOf.RejectInput
+                        );
+                    }
+                );
+                yield break;
+            }
 
             if (
                 !colonist.CanReach(
@@ -132,6 +156,23 @@ namespace IdeologyExpandedEnclaves
                     MessageTypeDefOf.RejectInput
                 );
 
+                return;
+            }
+
+            string unavailableReason;
+
+            if (
+                !EnclaveRecruitmentService.RecruitmentIsAvailable(
+                    camp,
+                    out unavailableReason
+                )
+            )
+            {
+                Messages.Message(
+                    unavailableReason,
+                    recruiter,
+                    MessageTypeDefOf.RejectInput
+                );
                 return;
             }
 

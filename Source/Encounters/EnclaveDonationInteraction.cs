@@ -44,6 +44,23 @@ namespace IdeologyExpandedEnclaves
                 "Donate silver to " +
                 (camp.Data?.Name ?? "the enclave");
 
+            if (EnclaveRelationshipUtility.IsLocallyHostile(camp))
+            {
+                yield return new FloatMenuOption(
+                    "Donations unavailable (Hostile enclave)",
+                    delegate
+                    {
+                        Messages.Message(
+                            "Donations unavailable. This enclave is " +
+                            "hostile toward your visiting group.",
+                            clickedPawn,
+                            MessageTypeDefOf.RejectInput
+                        );
+                    }
+                );
+                yield break;
+            }
+
             if (
                 !colonist.CanReach(
                     clickedPawn,

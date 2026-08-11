@@ -245,6 +245,10 @@ namespace IdeologyExpandedEnclaves
                 "Locally hostile: " +
                 EnclaveRelationshipUtility.IsLocallyHostile(camp)
             );
+            report.AppendLine(
+                "Local combat: " +
+                EnclaveLocalHostilityService.GetCombatStateLabel(camp)
+            );
             Pawn factionPawn =
                 camp.PawnRoles?.GetPawn(EnclavePawnRole.Leader) ??
                 camp.PawnRoles?.GetPawn(EnclavePawnRole.Trader) ??

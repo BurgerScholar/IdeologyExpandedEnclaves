@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <DutyDef>
+    <defName>IEE_EnclaveLocalHostility</defName>
+    <thinkNode Class="IdeologyExpandedEnclaves.JobGiver_EnclaveAttackVisitingGroup" />
+    <alwaysShowWeapon>true</alwaysShowWeapon>
+    <socialModeMax>Off</socialModeMax>
+  </DutyDef>
+</Defs>

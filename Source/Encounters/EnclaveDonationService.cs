@@ -62,6 +62,14 @@ namespace IdeologyExpandedEnclaves
                 return false;
             }
 
+            if (EnclaveRelationshipUtility.IsLocallyHostile(camp))
+            {
+                failureReason =
+                    "Donations unavailable. This enclave is hostile " +
+                    "toward your visiting group.";
+                return false;
+            }
+
             if (
                 leader == null ||
                 leader.Destroyed ||
@@ -163,6 +171,10 @@ namespace IdeologyExpandedEnclaves
             int updatedReputation = camp.Data.ChangeReputation(
                 option.ReputationGain,
                 "silver donation"
+            );
+            EnclaveLocalHostilityService.NotifyReputationChanged(
+                camp,
+                previousTier
             );
             EnclaveReputationTier updatedTier =
                 camp.Data.ReputationTier;

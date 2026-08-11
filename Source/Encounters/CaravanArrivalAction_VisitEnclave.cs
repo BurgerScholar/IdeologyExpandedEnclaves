@@ -17,7 +17,10 @@ namespace IdeologyExpandedEnclaves
             this.camp = camp;
         }
 
-        public override string Label => "Visit enclave";
+        public override string Label =>
+            EnclaveRelationshipUtility.IsLocallyHostile(camp)
+                ? "Visit enclave (Warning: Hostile)"
+                : "Visit enclave";
 
         public override string ReportString
         {
@@ -26,7 +29,13 @@ namespace IdeologyExpandedEnclaves
                 string enclaveName =
                     camp?.Data?.Name ?? "the pilgrim camp";
 
-                return "Caravan traveling to visit " + enclaveName + ".";
+                return
+                    "Caravan traveling to visit " +
+                    enclaveName +
+                    "." +
+                    (EnclaveRelationshipUtility.IsLocallyHostile(camp)
+                        ? " Warning: this enclave is Hostile."
+                        : string.Empty);
             }
         }
 
@@ -71,14 +80,22 @@ namespace IdeologyExpandedEnclaves
                         draftColonists: false
                     );
 
+                    EnclaveLocalHostilityService.UpdateCampCombatState(
+                        camp,
+                        notifyPlayer: true
+                    );
+
                     CameraJumper.TryJump(map.Center, map);
 
-                    Messages.Message(
-                        "Your caravan has entered " +
-                        (camp.Data?.Name ?? "the pilgrim camp") +
-                        ".",
-                        MessageTypeDefOf.PositiveEvent
-                    );
+                    if (!EnclaveRelationshipUtility.IsLocallyHostile(camp))
+                    {
+                        Messages.Message(
+                            "Your caravan has entered " +
+                            (camp.Data?.Name ?? "the pilgrim camp") +
+                            ".",
+                            MessageTypeDefOf.PositiveEvent
+                        );
+                    }
                 },
                 "GeneratingMap",
                 doAsynchronously: false,

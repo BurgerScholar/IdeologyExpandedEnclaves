@@ -7,6 +7,9 @@ namespace IdeologyExpandedEnclaves
 {
     public class PilgrimCamp : MapParent
     {
+        protected override bool UseGenericEnterMapFloatMenuOption =>
+            false;
+
         public EnclaveData Data;
         public EnclavePawnRoleAssignments PawnRoles =
             new EnclavePawnRoleAssignments();
@@ -94,6 +97,8 @@ namespace IdeologyExpandedEnclaves
                                 loadedCamp,
                                 "existing-save migration"
                             );
+                        EnclaveLocalHostilityService
+                            .UpdateCampCombatState(loadedCamp);
                     }
                 );
             }
@@ -111,9 +116,13 @@ namespace IdeologyExpandedEnclaves
             EnsureDataExists();
 
             string enclaveName = Data?.Name ?? "the pilgrim camp";
+            bool locallyHostile =
+                EnclaveRelationshipUtility.IsLocallyHostile(this);
 
             yield return new FloatMenuOption(
-                "Visit " + enclaveName,
+                "Visit " +
+                enclaveName +
+                (locallyHostile ? " (Warning: Hostile)" : string.Empty),
                 delegate
                 {
                     caravan.pather.StartPath(
@@ -157,7 +166,11 @@ namespace IdeologyExpandedEnclaves
             yield return new Command_Action
             {
                 defaultLabel = "Visit enclave",
-                defaultDesc = "Prepare to send a caravan into the pilgrim camp.",
+                defaultDesc =
+                    EnclaveRelationshipUtility.IsLocallyHostile(this)
+                        ? "Warning: this enclave is Hostile and its " +
+                            "members will attack a visiting caravan."
+                        : "Prepare to send a caravan into the pilgrim camp.",
                 icon = BaseContent.BadTex,
                 action = delegate
                 {
@@ -193,6 +206,12 @@ namespace IdeologyExpandedEnclaves
                     }
                 };
             }
+        }
+
+        public override void Notify_CaravanFormed(Caravan caravan)
+        {
+            base.Notify_CaravanFormed(caravan);
+            EnclaveLocalHostilityService.UpdateCampCombatState(this);
         }
 
         private void ShowEnclaveInformation()

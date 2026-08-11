@@ -139,6 +139,10 @@ namespace IdeologyExpandedEnclaves
                 -penalty,
                 "player " + eventLabel + " enclave pilgrim"
             );
+            EnclaveLocalHostilityService.NotifyReputationChanged(
+                camp,
+                previousTier
+            );
             int appliedPenalty = previousReputation - updatedReputation;
 
             Log.Message(

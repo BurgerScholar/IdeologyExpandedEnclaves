@@ -217,10 +217,15 @@ namespace IdeologyExpandedEnclaves
                 label + ": " + value,
                 delegate
                 {
+                    EnclaveReputationTier previousTier =
+                        camp.Data.ReputationTier;
+
                     camp.Data.SetReputation(
                         value,
                         "developer reputation test control"
                     );
+                    EnclaveLocalHostilityService
+                        .NotifyReputationChanged(camp, previousTier);
                     Messages.Message(
                         "Enclave reputation set to " +
                         camp.Data.Reputation +
@@ -399,10 +404,18 @@ namespace IdeologyExpandedEnclaves
                         "Hostile Test State",
                         delegate
                         {
+                            EnclaveReputationTier previousTier =
+                                camp.Data.ReputationTier;
+
                             camp.Data.SetReputation(
                                 -50,
                                 "developer Hostile test preset"
                             );
+                            EnclaveLocalHostilityService
+                                .NotifyReputationChanged(
+                                    camp,
+                                    previousTier
+                                );
                             Messages.Message(
                                 "Applied Hostile test state. " +
                                 "Development and ideology were unchanged.",
@@ -421,9 +434,16 @@ namespace IdeologyExpandedEnclaves
             string label
         )
         {
+            EnclaveReputationTier previousTier =
+                camp.Data.ReputationTier;
+
             camp.Data.SetReputation(
                 reputation,
                 "developer " + label + " test preset"
+            );
+            EnclaveLocalHostilityService.NotifyReputationChanged(
+                camp,
+                previousTier
             );
             EnclaveDevelopmentUtility.SetTier(
                 camp.Data,
