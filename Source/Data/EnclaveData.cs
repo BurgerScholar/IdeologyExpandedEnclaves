@@ -28,6 +28,8 @@ namespace IdeologyExpandedEnclaves
         public string Ideology;
         public EnclaveIdeologyProfile IdeologyProfile;
         public int Population;
+        public EnclaveDevelopmentTier DevelopmentTier;
+        public int DevelopmentTierInitialPopulation = -1;
         public bool Friendly;
         public int Reputation;
         public EnclaveTraderStockGrantTier HighestTraderStockTierGranted;
@@ -57,6 +59,16 @@ namespace IdeologyExpandedEnclaves
                 "ideologyProfile"
             );
             Scribe_Values.Look(ref Population, "population", 0);
+            Scribe_Values.Look(
+                ref DevelopmentTier,
+                "developmentTier",
+                EnclaveDevelopmentTier.Unassigned
+            );
+            Scribe_Values.Look(
+                ref DevelopmentTierInitialPopulation,
+                "developmentTierInitialPopulation",
+                -1
+            );
             Scribe_Values.Look(ref Friendly, "friendly", true);
             Scribe_Values.Look(
                 ref Reputation,
@@ -96,6 +108,10 @@ namespace IdeologyExpandedEnclaves
                 Reputation = EnclaveReputation.Clamp(Reputation);
 
                 EnclaveIdeologyUtility.EnsureProfile(
+                    this,
+                    reason: "existing-save migration"
+                );
+                EnclaveDevelopmentUtility.EnsureTier(
                     this,
                     reason: "existing-save migration"
                 );

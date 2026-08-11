@@ -22,8 +22,7 @@ namespace IdeologyExpandedEnclaves
             PilgrimCamp camp =
                 (PilgrimCamp)WorldObjectMaker.MakeWorldObject(def);
 
-            camp.Data = EnclaveGenerator.Generate();
-            camp.Data.Population = TestPopulation;
+            camp.Data = EnclaveGenerator.Generate(TestPopulation);
             camp.Tile = TileFinder.RandomSettlementTileFor(
                 Faction.OfPlayer,
                 mustBeAutoChoosable: false
@@ -211,8 +210,19 @@ namespace IdeologyExpandedEnclaves
                 EnclaveIdeologyUtility.GetTypeLabel(camp.Data)
             );
             report.AppendLine(
-                "Actual Ideo: Not assigned " +
-                "(profile foundation only)"
+                "Actual Ideo: " +
+                DescribeIdeo(camp.Data)
+            );
+            report.AppendLine(
+                "Development: " +
+                EnclaveDevelopmentUtility.GetDisplayName(camp.Data) +
+                " (numeric tier " +
+                EnclaveDevelopmentUtility.GetNumericTier(camp.Data) +
+                ")"
+            );
+            report.AppendLine(
+                "Development initial population: " +
+                camp.Data.DevelopmentTierInitialPopulation
             );
             report.AppendLine(
                 "Reputation: " +
@@ -244,6 +254,7 @@ namespace IdeologyExpandedEnclaves
                 "Registered enclave pawns: " +
                 (camp.PawnMembers?.Members?.Count ?? 0)
             );
+            AppendIdeologyAlignment(report, camp);
             report.AppendLine(
                 "Leader: " +
                 DescribePawn(camp.PawnRoles?.GetPawn(EnclavePawnRole.Leader))
@@ -304,6 +315,99 @@ namespace IdeologyExpandedEnclaves
 
             Log.Message("[IEE] DEV enclave test state\n" + reportText);
             Find.WindowStack.Add(new Dialog_MessageBox(reportText));
+        }
+
+        private static void AppendIdeologyAlignment(
+            StringBuilder report,
+            PilgrimCamp camp
+        )
+        {
+            if (camp.Map == null)
+            {
+                report.AppendLine(
+                    "Pawn ideology alignment: not checked " +
+                    "(map not generated)"
+                );
+                return;
+            }
+
+            Ideo intendedIdeo =
+                EnclaveIdeologyUtility.GetActualIdeo(camp.Data);
+
+            if (intendedIdeo == null)
+            {
+                report.AppendLine(
+                    "Pawn ideology alignment: unavailable " +
+                    "(actual Ideo not established)"
+                );
+                return;
+            }
+
+            int eligibleCount = 0;
+            int alignedCount = 0;
+            StringBuilder mismatches = new StringBuilder();
+
+            if (camp.PawnMembers?.Members != null)
+            {
+                foreach (Pawn pawn in camp.PawnMembers.Members)
+                {
+                    if (
+                        pawn == null ||
+                        pawn.Destroyed ||
+                        pawn.Dead ||
+                        pawn.Faction == Faction.OfPlayer ||
+                        pawn.RaceProps == null ||
+                        !pawn.RaceProps.Humanlike ||
+                        pawn.Map != camp.Map
+                    )
+                    {
+                        continue;
+                    }
+
+                    eligibleCount++;
+
+                    if (pawn.Ideo == intendedIdeo)
+                    {
+                        alignedCount++;
+                    }
+                    else
+                    {
+                        if (mismatches.Length > 0)
+                        {
+                            mismatches.Append(", ");
+                        }
+
+                        mismatches.Append(DescribePawn(pawn));
+                    }
+                }
+            }
+
+            report.AppendLine(
+                "Pawn ideology alignment: " +
+                alignedCount +
+                "/" +
+                eligibleCount +
+                " active registered member(s) aligned"
+            );
+
+            if (mismatches.Length > 0)
+            {
+                report.AppendLine(
+                    "  Mismatched: " + mismatches
+                );
+            }
+        }
+
+        private static string DescribeIdeo(EnclaveData data)
+        {
+            Ideo ideo = EnclaveIdeologyUtility.GetActualIdeo(data);
+
+            return ideo == null
+                ? "Not yet established"
+                : EnclaveIdeologyUtility.GetActualIdeoLabel(data) +
+                    " (" +
+                    ideo.GetUniqueLoadID() +
+                    ")";
         }
 
         private static string DescribePawn(Pawn pawn)

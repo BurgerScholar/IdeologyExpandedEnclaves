@@ -25,13 +25,13 @@ namespace IdeologyExpandedEnclaves
             "Elder Miriam"
         };
 
-        public static EnclaveData Generate()
+        public static EnclaveData Generate(int? populationOverride = null)
         {
             EnclaveData data = new EnclaveData
             {
                 Name = names[random.Next(names.Length)],
                 Leader = leaders[random.Next(leaders.Length)],
-                Population = random.Next(6, 13),
+                Population = populationOverride ?? random.Next(6, 13),
                 Ideology = "Unknown",
                 Friendly = true
             };
@@ -41,6 +41,10 @@ namespace IdeologyExpandedEnclaves
             EnclaveIdeologyUtility.EnsureProfile(
                 data,
                 random,
+                "new enclave generation"
+            );
+            EnclaveDevelopmentUtility.EnsureTier(
+                data,
                 "new enclave generation"
             );
 

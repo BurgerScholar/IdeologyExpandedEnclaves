@@ -1,4 +1,5 @@
 using System;
+using RimWorld;
 using Verse;
 
 namespace IdeologyExpandedEnclaves
@@ -18,6 +19,7 @@ namespace IdeologyExpandedEnclaves
     public class EnclaveIdeologyProfile : IExposable
     {
         public EnclaveIdeologyType Type;
+        public Ideo ActualIdeo;
 
         public bool IsValid =>
             Type != EnclaveIdeologyType.Unassigned &&
@@ -29,6 +31,10 @@ namespace IdeologyExpandedEnclaves
                 ref Type,
                 "type",
                 EnclaveIdeologyType.Unassigned
+            );
+            Scribe_References.Look(
+                ref ActualIdeo,
+                "actualIdeo"
             );
 
             if (

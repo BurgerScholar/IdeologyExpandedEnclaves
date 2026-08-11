@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using RimWorld;
+using RimWorld.Planet;
 using Verse;
 
 namespace IdeologyExpandedEnclaves
@@ -80,6 +83,151 @@ namespace IdeologyExpandedEnclaves
                 : type.ToString();
         }
 
+        public static Ideo GetActualIdeo(EnclaveData data)
+        {
+            return data?.IdeologyProfile?.ActualIdeo;
+        }
+
+        public static string GetActualIdeoLabel(EnclaveData data)
+        {
+            Ideo ideo = GetActualIdeo(data);
+
+            return ideo?.name.NullOrEmpty() == false
+                ? ideo.name
+                : "Not yet established";
+        }
+
+        public static bool EnsureCampPawnAlignment(
+            PilgrimCamp camp,
+            string reason = null
+        )
+        {
+            if (
+                camp?.Data == null ||
+                camp.Map == null ||
+                camp.PawnMembers?.Members == null ||
+                !camp.PawnMembers.IsInitialized
+            )
+            {
+                return false;
+            }
+
+            Ideo ideo;
+
+            if (!TryEnsureActualIdeo(camp.Data, out ideo))
+            {
+                return false;
+            }
+
+            int eligibleCount = 0;
+            int alignedCount = 0;
+
+            foreach (Pawn pawn in camp.PawnMembers.Members)
+            {
+                if (
+                    pawn == null ||
+                    pawn.Destroyed ||
+                    pawn.Dead ||
+                    pawn.Faction == Faction.OfPlayer ||
+                    pawn.RaceProps == null ||
+                    !pawn.RaceProps.Humanlike ||
+                    pawn.Map != camp.Map
+                )
+                {
+                    continue;
+                }
+
+                eligibleCount++;
+
+                if (pawn.Ideo == ideo)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    if (pawn.ideo == null)
+                    {
+                        PawnComponentsUtility
+                            .AddAndRemoveDynamicComponents(pawn);
+                    }
+
+                    if (pawn.ideo == null)
+                    {
+                        Log.Error(
+                            "[IEE] Could not align ideology for " +
+                            pawn.GetUniqueLoadID() +
+                            " because its ideology tracker is missing."
+                        );
+                        continue;
+                    }
+
+                    pawn.ideo.SetIdeo(ideo);
+                    alignedCount++;
+                }
+                catch (Exception exception)
+                {
+                    Log.Error(
+                        "[IEE] Could not align enclave member " +
+                        pawn.GetUniqueLoadID() +
+                        " with " +
+                        GetActualIdeoLabel(camp.Data) +
+                        ": " +
+                        exception
+                    );
+                }
+            }
+
+            if (alignedCount > 0)
+            {
+                Log.Message(
+                    "[IEE] Aligned " +
+                    alignedCount +
+                    " of " +
+                    eligibleCount +
+                    " registered member(s) at " +
+                    (camp.Data.Name ?? "an enclave") +
+                    " with Ideo " +
+                    GetActualIdeoLabel(camp.Data) +
+                    (reason.NullOrEmpty()
+                        ? "."
+                        : " (" + reason + ").")
+                );
+            }
+
+            return true;
+        }
+
+        public static bool IsPersistentCampIdeo(Ideo ideo)
+        {
+            if (ideo == null || Find.World == null)
+            {
+                return false;
+            }
+
+            List<WorldObject> worldObjects =
+                Find.WorldObjects?.AllWorldObjects;
+
+            if (worldObjects == null)
+            {
+                return false;
+            }
+
+            foreach (WorldObject worldObject in worldObjects)
+            {
+                PilgrimCamp camp = worldObject as PilgrimCamp;
+
+                if (
+                    camp?.Data?.IdeologyProfile?.ActualIdeo == ideo
+                )
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public static bool EnsureProfile(
             EnclaveData data,
             Random random = null,
@@ -112,6 +260,100 @@ namespace IdeologyExpandedEnclaves
                 (reason.NullOrEmpty()
                     ? "."
                     : " (" + reason + ").")
+            );
+
+            return true;
+        }
+
+        private static bool TryEnsureActualIdeo(
+            EnclaveData data,
+            out Ideo ideo
+        )
+        {
+            ideo = null;
+
+            if (data == null || !ModsConfig.IdeologyActive)
+            {
+                return false;
+            }
+
+            EnsureProfile(data, reason: "actual Ideo generation");
+
+            IdeoManager manager = Find.IdeoManager;
+            Faction enclaveFaction =
+                EnclaveFactionUtility.GetOrCreateFaction();
+
+            if (manager == null || enclaveFaction == null)
+            {
+                Log.Error(
+                    "[IEE] Cannot establish an enclave Ideo because " +
+                    "the ideology manager or enclave faction is missing."
+                );
+                return false;
+            }
+
+            ideo = data.IdeologyProfile.ActualIdeo;
+
+            if (ideo != null)
+            {
+                if (
+                    !manager.IdeosListForReading.Contains(ideo) &&
+                    !manager.Add(ideo)
+                )
+                {
+                    Log.Error(
+                        "[IEE] The saved Ideo for " +
+                        (data.Name ?? "an enclave") +
+                        " could not be registered with RimWorld."
+                    );
+                    ideo = null;
+                    return false;
+                }
+
+                return true;
+            }
+
+            Ideo generatedIdeo;
+
+            try
+            {
+                generatedIdeo = IdeoGenerator.GenerateIdeo(
+                    new IdeoGenerationParms(enclaveFaction.def)
+                );
+            }
+            catch (Exception exception)
+            {
+                Log.Error(
+                    "[IEE] Failed to generate a persistent Ideo for " +
+                    (data.Name ?? "an enclave") +
+                    ": " +
+                    exception
+                );
+                return false;
+            }
+
+            if (generatedIdeo == null || !manager.Add(generatedIdeo))
+            {
+                Log.Error(
+                    "[IEE] RimWorld did not register the generated " +
+                    "Ideo for " +
+                    (data.Name ?? "an enclave") +
+                    "."
+                );
+                return false;
+            }
+
+            data.IdeologyProfile.ActualIdeo = generatedIdeo;
+            ideo = generatedIdeo;
+
+            Log.Message(
+                "[IEE] Generated persistent Ideo " +
+                GetActualIdeoLabel(data) +
+                " (" +
+                generatedIdeo.GetUniqueLoadID() +
+                ") for " +
+                (data.Name ?? "an enclave") +
+                "."
             );
 
             return true;

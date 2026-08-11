@@ -101,6 +101,10 @@ namespace IdeologyExpandedEnclaves
                 }
 
                 camp.PawnMembers.SetMembers(pilgrims);
+                EnclaveIdeologyUtility.EnsureCampPawnAlignment(
+                    camp,
+                    "new enclave population"
+                );
                 AssignLeader(camp, pilgrims);
                 AssignTrader(camp, pilgrims, map);
                 AssignRecruiter(camp, pilgrims);

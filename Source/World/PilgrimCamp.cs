@@ -89,6 +89,11 @@ namespace IdeologyExpandedEnclaves
                         EnclaveFactionUtility.EnsureCampFaction(
                             loadedCamp
                         );
+                        EnclaveIdeologyUtility
+                            .EnsureCampPawnAlignment(
+                                loadedCamp,
+                                "existing-save migration"
+                            );
                     }
                 );
             }
@@ -270,11 +275,17 @@ namespace IdeologyExpandedEnclaves
             Find.WindowStack.Add(
                 new Dialog_MessageBox(
                     Data.Name + "\n\n" +
-                    "Type: Pilgrim Camp\n" +
+                    "Site: Pilgrim Camp\n" +
                     "Leader: " + Data.Leader + "\n" +
                     "Population: " + Data.Population + "\n" +
-                    "Ideology Type: " +
+                    "Ideology: " +
+                    EnclaveIdeologyUtility.GetActualIdeoLabel(Data) +
+                    "\n" +
+                    "Type: " +
                     EnclaveIdeologyUtility.GetTypeLabel(Data) +
+                    "\n" +
+                    "Development: " +
+                    EnclaveDevelopmentUtility.GetDisplayName(Data) +
                     "\n" +
                     "Reputation: " +
                     Data.Reputation +
