@@ -207,6 +207,14 @@ namespace IdeologyExpandedEnclaves
             report.AppendLine("Enclave: " + camp.Data.Name);
             report.AppendLine("Population: " + camp.Data.Population);
             report.AppendLine(
+                "Ideology type: " +
+                EnclaveIdeologyUtility.GetTypeLabel(camp.Data)
+            );
+            report.AppendLine(
+                "Actual Ideo: Not assigned " +
+                "(profile foundation only)"
+            );
+            report.AppendLine(
                 "Reputation: " +
                 camp.Data.Reputation +
                 " — " +

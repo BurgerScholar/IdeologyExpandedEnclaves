@@ -24,7 +24,9 @@ namespace IdeologyExpandedEnclaves
     {
         public string Name;
         public string Leader;
+        // Retained for compatibility with saves created before profiles.
         public string Ideology;
+        public EnclaveIdeologyProfile IdeologyProfile;
         public int Population;
         public bool Friendly;
         public int Reputation;
@@ -50,6 +52,10 @@ namespace IdeologyExpandedEnclaves
             Scribe_Values.Look(ref Name, "name", "Unnamed Enclave");
             Scribe_Values.Look(ref Leader, "leader", "Unknown");
             Scribe_Values.Look(ref Ideology, "ideology", "Unknown");
+            Scribe_Deep.Look(
+                ref IdeologyProfile,
+                "ideologyProfile"
+            );
             Scribe_Values.Look(ref Population, "population", 0);
             Scribe_Values.Look(ref Friendly, "friendly", true);
             Scribe_Values.Look(
@@ -88,6 +94,11 @@ namespace IdeologyExpandedEnclaves
                 int loadedReputation = Reputation;
 
                 Reputation = EnclaveReputation.Clamp(Reputation);
+
+                EnclaveIdeologyUtility.EnsureProfile(
+                    this,
+                    reason: "existing-save migration"
+                );
 
                 if (
                     !Enum.IsDefined(

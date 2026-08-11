@@ -38,6 +38,11 @@ namespace IdeologyExpandedEnclaves
 
             data.InitializeReputation();
             data.EnsureLayoutAssignments(random);
+            EnclaveIdeologyUtility.EnsureProfile(
+                data,
+                random,
+                "new enclave generation"
+            );
 
             Log.Message(
                 "[IEE] Generated persistent layout for " +

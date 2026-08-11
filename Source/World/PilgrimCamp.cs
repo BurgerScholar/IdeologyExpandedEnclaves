@@ -273,7 +273,9 @@ namespace IdeologyExpandedEnclaves
                     "Type: Pilgrim Camp\n" +
                     "Leader: " + Data.Leader + "\n" +
                     "Population: " + Data.Population + "\n" +
-                    "Ideology: " + Data.Ideology + "\n" +
+                    "Ideology Type: " +
+                    EnclaveIdeologyUtility.GetTypeLabel(Data) +
+                    "\n" +
                     "Reputation: " +
                     Data.Reputation +
                     " — " +
