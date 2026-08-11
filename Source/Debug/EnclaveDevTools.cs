@@ -349,9 +349,23 @@ namespace IdeologyExpandedEnclaves
         {
             List<EnclaveNeighborInfo> neighbors =
                 EnclaveProximityUtility.GetNearbyNeighbors(camp);
+            EnclaveRegionalInfluenceSummary regionalInfluence =
+                EnclaveInfluenceUtility.CalculateRegionalSummary(
+                    camp,
+                    neighbors
+                );
 
             report.AppendLine("WORLD");
             report.AppendLine("Tile: " + camp.Tile);
+            report.AppendLine(
+                "Regional Status: " +
+                regionalInfluence.StatusLabel +
+                " (pressure " +
+                FormatSignedScore(
+                    regionalInfluence.TotalPressure
+                ) +
+                ")"
+            );
             report.AppendLine("Qualifying neighbors:");
 
             if (neighbors.Count == 0)
@@ -382,6 +396,10 @@ namespace IdeologyExpandedEnclaves
                     report.Append(" \u2014 influence ");
                     report.Append(
                         FormatSignedScore(neighbor.Influence.Total)
+                    );
+                    report.Append(" \u2014 regional pressure ");
+                    report.Append(
+                        FormatSignedScore(neighbor.RegionalPressure)
                     );
                     report.AppendLine();
                 }

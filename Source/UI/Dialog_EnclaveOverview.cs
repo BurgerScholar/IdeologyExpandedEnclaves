@@ -227,7 +227,21 @@ namespace IdeologyExpandedEnclaves
             List<EnclaveNeighborInfo> neighbors
         )
         {
-            List<string> lines = new List<string>();
+            EnclaveRegionalInfluenceSummary regionalInfluence =
+                EnclaveInfluenceUtility.CalculateRegionalSummary(
+                    camp,
+                    neighbors
+                );
+            List<string> lines = new List<string>
+            {
+                "Regional Status: " +
+                    regionalInfluence.StatusLabel +
+                    " (pressure " +
+                    FormatSignedScore(
+                        regionalInfluence.TotalPressure
+                    ) +
+                    ")"
+            };
 
             if (neighbors.Count == 0)
             {
@@ -249,7 +263,9 @@ namespace IdeologyExpandedEnclaves
                             neighbor.DistanceBand
                         ) +
                     " \u2014 Influence " +
-                    FormatSignedScore(neighbor.Influence.Total);
+                    FormatSignedScore(neighbor.Influence.Total) +
+                    " \u2014 Regional pressure " +
+                    FormatSignedScore(neighbor.RegionalPressure);
 
                 if (neighbor.NeighborType == EnclaveNeighborType.Enclave)
                 {

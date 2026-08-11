@@ -68,6 +68,7 @@ namespace IdeologyExpandedEnclaves
             { get; }
         public FactionRelationKind? FactionRelationToPlayer { get; }
         public EnclaveInfluenceScore Influence { get; }
+        public int RegionalPressure { get; }
 
         public int WorldObjectId => WorldObject?.ID ?? -1;
         public string Label =>
@@ -88,7 +89,8 @@ namespace IdeologyExpandedEnclaves
             InterEnclaveRelationshipState?
                 interEnclaveRelationshipState,
             FactionRelationKind? factionRelationToPlayer,
-            EnclaveInfluenceScore influence
+            EnclaveInfluenceScore influence,
+            int regionalPressure
         )
         {
             WorldObject = worldObject;
@@ -105,6 +107,7 @@ namespace IdeologyExpandedEnclaves
                 interEnclaveRelationshipState;
             FactionRelationToPlayer = factionRelationToPlayer;
             Influence = influence;
+            RegionalPressure = regionalPressure;
         }
     }
 }

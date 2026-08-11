@@ -289,13 +289,11 @@ namespace IdeologyExpandedEnclaves
                             neighborData
                         )
                     : EnclaveIdeologyCompatibility.Neutral;
-            InterEnclaveRelationshipRecord relationship =
+            int? relationshipScore =
                 neighborType == EnclaveNeighborType.Enclave &&
                 neighborCamp != null
-                    ? InterEnclaveRelationshipUtility.GetRelationship(
-                        source,
-                        neighborCamp
-                    )
+                    ? (int?)InterEnclaveRelationshipUtility
+                        .GetCurrentOrInitialScore(source, neighborCamp)
                     : null;
 
             return new EnclaveNeighborInfo(
@@ -309,11 +307,11 @@ namespace IdeologyExpandedEnclaves
                     : neighborData.Reputation,
                 EnclaveIdeologyUtility.GetIdeologyType(neighborData),
                 compatibility,
-                relationship?.Score,
-                relationship == null
+                relationshipScore,
+                !relationshipScore.HasValue
                     ? (InterEnclaveRelationshipState?)null
                     : InterEnclaveRelationshipUtility.GetState(
-                        relationship.Score
+                        relationshipScore.Value
                     ),
                 relationToPlayer,
                 EnclaveInfluenceUtility.CalculateInfluence(
@@ -321,7 +319,14 @@ namespace IdeologyExpandedEnclaves
                     worldObject,
                     neighborType,
                     distanceBand
-                )
+                ),
+                EnclaveProximityProfileUtility
+                    .CalculateRegionalPressure(
+                        source,
+                        worldObject,
+                        neighborType,
+                        distanceBand
+                    )
             );
         }
     }

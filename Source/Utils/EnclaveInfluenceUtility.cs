@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RimWorld.Planet;
 
 namespace IdeologyExpandedEnclaves
@@ -113,6 +114,34 @@ namespace IdeologyExpandedEnclaves
                 default:
                     return NeutralSettlementWeight;
             }
+        }
+
+        public static EnclaveRegionalInfluenceSummary
+            CalculateRegionalSummary(
+            PilgrimCamp camp,
+            List<EnclaveNeighborInfo> neighbors = null
+        )
+        {
+            int totalPressure = 0;
+
+            if (camp?.Data != null)
+            {
+                List<EnclaveNeighborInfo> currentNeighbors =
+                    neighbors ??
+                    EnclaveProximityUtility.GetNearbyNeighbors(camp);
+
+                foreach (EnclaveNeighborInfo neighbor in currentNeighbors)
+                {
+                    totalPressure += neighbor.RegionalPressure;
+                }
+            }
+
+            return new EnclaveRegionalInfluenceSummary(
+                totalPressure,
+                EnclaveProximityProfileUtility.GetRegionalStatus(
+                    totalPressure
+                )
+            );
         }
     }
 }

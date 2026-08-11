@@ -92,6 +92,27 @@ namespace IdeologyExpandedEnclaves
             return relationship;
         }
 
+        public bool TryGet(
+            PilgrimCamp first,
+            PilgrimCamp second,
+            out InterEnclaveRelationshipRecord relationship
+        )
+        {
+            relationship = null;
+
+            if (!CanRepresent(first, second))
+            {
+                return false;
+            }
+
+            EnsureCollections();
+
+            return relationshipByPair.TryGetValue(
+                CreatePairKey(first.ID, second.ID),
+                out relationship
+            );
+        }
+
         public bool Remove(
             PilgrimCamp first,
             PilgrimCamp second

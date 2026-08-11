@@ -35,6 +35,22 @@ namespace IdeologyExpandedEnclaves
             return relationship?.Score ?? 0;
         }
 
+        public static int GetCurrentOrInitialScore(
+            PilgrimCamp first,
+            PilgrimCamp second
+        )
+        {
+            EnclaveRelationshipWorldComponent component =
+                GetComponent();
+            InterEnclaveRelationshipRecord relationship;
+
+            return
+                component != null &&
+                component.TryGet(first, second, out relationship)
+                    ? relationship.Score
+                    : CalculateInitialScore(first, second);
+        }
+
         public static InterEnclaveRelationshipState GetRelationshipState(
             PilgrimCamp first,
             PilgrimCamp second
@@ -47,7 +63,8 @@ namespace IdeologyExpandedEnclaves
             PilgrimCamp first,
             PilgrimCamp second,
             int amount,
-            string reason = null
+            string reason = null,
+            bool logChange = true
         )
         {
             InterEnclaveRelationshipRecord relationship =
@@ -63,7 +80,7 @@ namespace IdeologyExpandedEnclaves
                 (long)relationship.Score + amount
             );
 
-            if (previous != relationship.Score)
+            if (previous != relationship.Score && logChange)
             {
                 Log.Message(
                     "[IEE] Inter-enclave relationship between " +

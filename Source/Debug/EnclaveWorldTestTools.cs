@@ -47,6 +47,14 @@ namespace IdeologyExpandedEnclaves
                         delegate { ShowNearbyInfluence(camp); }
                     ),
                     new FloatMenuOption(
+                        "Preview Proximity Pulse",
+                        delegate { PreviewProximityPulse(camp); }
+                    ),
+                    new FloatMenuOption(
+                        "Apply Proximity Pulse Now",
+                        delegate { ApplyProximityPulse(camp); }
+                    ),
+                    new FloatMenuOption(
                         "Give 2,000 Test Silver",
                         delegate { EnclaveDevTools.GiveTestSilver(camp); }
                     ),
@@ -96,12 +104,26 @@ namespace IdeologyExpandedEnclaves
 
             List<EnclaveNeighborInfo> neighbors =
                 EnclaveProximityUtility.GetNearbyNeighbors(camp);
+            EnclaveRegionalInfluenceSummary regionalInfluence =
+                EnclaveInfluenceUtility.CalculateRegionalSummary(
+                    camp,
+                    neighbors
+                );
             StringBuilder report = new StringBuilder();
 
             report.AppendLine(
                 "Nearby Influence for " + camp.Data.Name
             );
             report.AppendLine("Tile: " + camp.Tile);
+            report.AppendLine(
+                "Regional Status: " +
+                regionalInfluence.StatusLabel +
+                " (pressure " +
+                FormatSignedScore(
+                    regionalInfluence.TotalPressure
+                ) +
+                ")"
+            );
 
             if (neighbors.Count == 0)
             {
@@ -153,7 +175,9 @@ namespace IdeologyExpandedEnclaves
                             neighbor.Influence.NeighborTypeWeight
                         ) +
                         ", total " +
-                        FormatSignedScore(neighbor.Influence.Total)
+                        FormatSignedScore(neighbor.Influence.Total) +
+                        "; regional pressure " +
+                        FormatSignedScore(neighbor.RegionalPressure)
                     );
 
                     if (
@@ -188,6 +212,172 @@ namespace IdeologyExpandedEnclaves
 
             ShowReport(
                 "DEV nearby influence",
+                report.ToString().TrimEnd()
+            );
+        }
+
+        private static void PreviewProximityPulse(PilgrimCamp camp)
+        {
+            if (!CanUse(camp))
+            {
+                return;
+            }
+
+            EnclaveProximityPulseResult preview =
+                EnclaveProximityEffectsService.PreviewPulse();
+
+            ShowProximityPulseReport(
+                camp,
+                preview,
+                "Proximity Pulse Preview",
+                applied: false
+            );
+        }
+
+        private static void ApplyProximityPulse(PilgrimCamp camp)
+        {
+            if (!CanUse(camp))
+            {
+                return;
+            }
+
+            EnclaveProximityPulseResult result =
+                EnclaveProximityEffectsService.ApplyPulse();
+
+            ShowProximityPulseReport(
+                camp,
+                result,
+                "Proximity Pulse Applied",
+                applied: true
+            );
+        }
+
+        private static void ShowProximityPulseReport(
+            PilgrimCamp camp,
+            EnclaveProximityPulseResult result,
+            string title,
+            bool applied
+        )
+        {
+            EnclaveCampProximityEffect campEffect =
+                result?.GetCampEffect(camp);
+            StringBuilder report = new StringBuilder();
+
+            report.AppendLine(title + " - " + camp.Data.Name);
+
+            if (campEffect == null)
+            {
+                report.AppendLine(
+                    "This camp was not eligible for the production pulse."
+                );
+                ShowReport(
+                    "DEV proximity pulse",
+                    report.ToString().TrimEnd()
+                );
+                return;
+            }
+
+            report.AppendLine(
+                "Regional Status: " +
+                campEffect.RegionalInfluence.StatusLabel +
+                " (pressure " +
+                FormatSignedScore(
+                    campEffect.RegionalInfluence.TotalPressure
+                ) +
+                ")"
+            );
+
+            if (campEffect.NearestPlayerSettlement == null)
+            {
+                report.AppendLine(
+                    "Player reputation: no player settlement within " +
+                    "30 tiles; delta +0."
+                );
+            }
+            else
+            {
+                EnclaveNeighborInfo settlement =
+                    campEffect.NearestPlayerSettlement;
+
+                report.AppendLine(
+                    "Nearest player settlement: " +
+                    settlement.Label +
+                    " at " +
+                    settlement.DistanceInTiles.ToString("0.#") +
+                    " tiles (" +
+                    EnclaveProximityUtility.GetDistanceBandDisplayName(
+                        settlement.DistanceBand
+                    ) +
+                    ")."
+                );
+                report.AppendLine(
+                    "Player reputation: " +
+                    campEffect.StartingReputation +
+                    " -> " +
+                    campEffect.ProjectedReputation +
+                    " (delta " +
+                    FormatSignedScore(
+                        campEffect.PlayerReputationDelta
+                    ) +
+                    ", " +
+                    EnclaveIdeologyUtility.GetTypeLabel(camp.Data) +
+                    " tendency)."
+                );
+            }
+
+            report.AppendLine("Nearby enclave relationships:");
+            int relationshipCount = 0;
+
+            foreach (
+                EnclaveRelationshipProximityEffect relationship in
+                result.RelationshipEffects
+            )
+            {
+                if (!relationship.Includes(camp))
+                {
+                    continue;
+                }
+
+                PilgrimCamp otherCamp = relationship.GetOtherCamp(camp);
+                relationshipCount++;
+                report.AppendLine(
+                    "  " +
+                    (otherCamp?.Data?.Name ?? "Unknown enclave") +
+                    ": " +
+                    relationship.StartingRelationship +
+                    " -> " +
+                    relationship.ProjectedRelationship +
+                    " (delta " +
+                    FormatSignedScore(
+                        relationship.RelationshipDelta
+                    ) +
+                    ", " +
+                    EnclaveIdeologyCompatibilityUtility
+                        .GetDisplayName(relationship.Compatibility) +
+                    ", " +
+                    EnclaveProximityUtility.GetDistanceBandDisplayName(
+                        relationship.DistanceBand
+                    ) +
+                    ")."
+                );
+            }
+
+            if (relationshipCount == 0)
+            {
+                report.AppendLine("  None within 30 tiles.");
+            }
+
+            report.AppendLine();
+            report.AppendLine(
+                applied
+                    ? "The exact production pulse was applied globally " +
+                        "to all initialized Pilgrim Camps."
+                    : "Preview only; no reputation or relationship " +
+                        "drift was applied."
+            );
+
+            ShowReport(
+                "DEV proximity pulse",
                 report.ToString().TrimEnd()
             );
         }
