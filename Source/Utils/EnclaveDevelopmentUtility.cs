@@ -17,7 +17,14 @@ namespace IdeologyExpandedEnclaves
 
         public static string GetDisplayName(EnclaveData data)
         {
-            switch (GetTier(data))
+            return GetDisplayName(GetTier(data));
+        }
+
+        public static string GetDisplayName(
+            EnclaveDevelopmentTier tier
+        )
+        {
+            switch (tier)
             {
                 case EnclaveDevelopmentTier.TierI:
                     return "Tier I \u2014 Small Camp";
@@ -30,6 +37,41 @@ namespace IdeologyExpandedEnclaves
                 default:
                     return "Unassigned";
             }
+        }
+
+        public static bool SetTier(
+            EnclaveData data,
+            EnclaveDevelopmentTier tier,
+            string reason = null
+        )
+        {
+            if (data == null || !IsValid(tier))
+            {
+                return false;
+            }
+
+            EnclaveDevelopmentTier previous = GetTier(data);
+
+            if (previous == tier)
+            {
+                return true;
+            }
+
+            data.DevelopmentTier = tier;
+
+            Log.Message(
+                "[IEE] Development tier for " +
+                (data.Name ?? "an enclave") +
+                " changed from " +
+                GetDisplayName(previous) +
+                " to " +
+                GetDisplayName(tier) +
+                (reason.NullOrEmpty()
+                    ? "."
+                    : " (" + reason + ").")
+            );
+
+            return true;
         }
 
         public static int GetNumericTier(EnclaveData data)

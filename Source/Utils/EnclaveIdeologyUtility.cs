@@ -83,6 +83,47 @@ namespace IdeologyExpandedEnclaves
                 : type.ToString();
         }
 
+        public static bool SetIdeologyType(
+            EnclaveData data,
+            EnclaveIdeologyType type,
+            string reason = null
+        )
+        {
+            if (
+                data == null ||
+                type == EnclaveIdeologyType.Unassigned ||
+                !Enum.IsDefined(typeof(EnclaveIdeologyType), type)
+            )
+            {
+                return false;
+            }
+
+            EnsureProfile(data, reason: "ideology type assignment");
+
+            EnclaveIdeologyType previous = data.IdeologyProfile.Type;
+
+            if (previous == type)
+            {
+                return true;
+            }
+
+            data.IdeologyProfile.Type = type;
+
+            Log.Message(
+                "[IEE] Enclave ideology type for " +
+                (data.Name ?? "an enclave") +
+                " changed from " +
+                previous +
+                " to " +
+                type +
+                (reason.NullOrEmpty()
+                    ? "."
+                    : " (" + reason + ").")
+            );
+
+            return true;
+        }
+
         public static Ideo GetActualIdeo(EnclaveData data)
         {
             return data?.IdeologyProfile?.ActualIdeo;

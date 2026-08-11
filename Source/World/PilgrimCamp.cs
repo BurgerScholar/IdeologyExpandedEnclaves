@@ -142,6 +142,20 @@ namespace IdeologyExpandedEnclaves
 
             yield return new Command_Action
             {
+                defaultLabel = "Enclave Overview",
+                defaultDesc =
+                    "Open the detailed enclave identity, relationship, " +
+                    "and nearby influence overview.",
+                icon = BaseContent.BadTex,
+                action = delegate
+                {
+                    EnsureDataExists();
+                    EnclaveDialogs.OpenOverview(this);
+                }
+            };
+
+            yield return new Command_Action
+            {
                 defaultLabel = "Visit enclave",
                 defaultDesc = "Prepare to send a caravan into the pilgrim camp.",
                 icon = BaseContent.BadTex,
@@ -168,100 +182,17 @@ namespace IdeologyExpandedEnclaves
             {
                 yield return new Command_Action
                 {
-                    defaultLabel = "DEV: Set reputation",
+                    defaultLabel = "DEV: Enclave Testing",
                     defaultDesc =
-                        "Set this enclave's reputation to a " +
-                        "representative value for tier testing.",
-                    icon = BaseContent.BadTex,
-                    action = ShowDevReputationMenu
-                };
-
-                yield return new Command_Action
-                {
-                    defaultLabel = "DEV: Give 2,000 silver",
-                    defaultDesc =
-                        "Give a visiting player pawn 2,000 silver, " +
-                        "or place it on this enclave map if no player " +
-                        "pawn is present.",
+                        "Open the organized enclave testing tools menu.",
                     icon = BaseContent.BadTex,
                     action = delegate
                     {
-                        EnclaveDevTools.GiveTestSilver(this);
+                        EnsureDataExists();
+                        EnclaveWorldTestTools.ShowTestingMenu(this);
                     }
-                };
-
-                yield return new Command_Action
-                {
-                    defaultLabel = "DEV: Show test state",
-                    defaultDesc =
-                        "Display and log this enclave's persistent data, " +
-                        "roles, candidates, and layout arrangement.",
-                    icon = BaseContent.BadTex,
-                    action = delegate
-                    {
-                        EnclaveDevTools.ShowTestState(this);
-                    }
-                };
-
-                yield return new Command_Action
-                {
-                    defaultLabel = "DEV: Remove camp",
-                    defaultDesc = "Remove this test pilgrim camp from the world.",
-                    icon = BaseContent.BadTex,
-                    action = RemoveCamp
                 };
             }
-        }
-
-        private void ShowDevReputationMenu()
-        {
-            EnsureDataExists();
-
-            List<FloatMenuOption> options =
-                new List<FloatMenuOption>
-                {
-                    CreateDevReputationOption("Hostile", -50),
-                    CreateDevReputationOption("Wary", -10),
-                    CreateDevReputationOption("Neutral", 0),
-                    CreateDevReputationOption("Friendly", 30),
-                    CreateDevReputationOption("Trusted", 60),
-                    CreateDevReputationOption("Revered", 90)
-                };
-
-            Find.WindowStack.Add(new FloatMenu(options));
-        }
-
-        private FloatMenuOption CreateDevReputationOption(
-            string tierLabel,
-            int value
-        )
-        {
-            return new FloatMenuOption(
-                tierLabel + ": " + value,
-                delegate
-                {
-                    SetDevReputation(value);
-                }
-            );
-        }
-
-        private void SetDevReputation(int value)
-        {
-            EnsureDataExists();
-
-            Data.SetReputation(
-                value,
-                "developer reputation test control"
-            );
-
-            Messages.Message(
-                "Enclave reputation set to " +
-                Data.Reputation +
-                " — " +
-                Data.ReputationTierLabel +
-                ".",
-                MessageTypeDefOf.NeutralEvent
-            );
         }
 
         private void ShowEnclaveInformation()
@@ -374,14 +305,5 @@ namespace IdeologyExpandedEnclaves
             );
         }
 
-        private void RemoveCamp()
-        {
-            Find.WorldObjects.Remove(this);
-
-            Messages.Message(
-                "The test pilgrim camp was removed.",
-                MessageTypeDefOf.NeutralEvent
-            );
-        }
     }
 }

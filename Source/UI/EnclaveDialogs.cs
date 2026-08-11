@@ -8,6 +8,22 @@ namespace IdeologyExpandedEnclaves
 {
     public static class EnclaveDialogs
     {
+        public static void OpenOverview(PilgrimCamp camp)
+        {
+            if (camp?.Data == null)
+            {
+                Messages.Message(
+                    "The enclave overview data is unavailable.",
+                    MessageTypeDefOf.RejectInput
+                );
+                return;
+            }
+
+            Find.WindowStack.Add(
+                new Dialog_EnclaveOverview(camp)
+            );
+        }
+
         public static void OpenRecruitmentCandidates(
             PilgrimCamp camp,
             Pawn recruiter

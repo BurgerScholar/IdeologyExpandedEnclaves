@@ -81,7 +81,9 @@ namespace IdeologyExpandedEnclaves
             }
 
             EnclaveTraderStockGrantTier targetTier =
-                GetGrantTier(camp.Data.ReputationTier);
+                GetGrantTierForReputation(
+                    camp.Data.ReputationTier
+                );
             EnclaveTraderStockGrantTier grantedTier =
                 camp.Data.HighestTraderStockTierGranted;
 
@@ -110,7 +112,8 @@ namespace IdeologyExpandedEnclaves
             return true;
         }
 
-        private static EnclaveTraderStockGrantTier GetGrantTier(
+        public static EnclaveTraderStockGrantTier
+            GetGrantTierForReputation(
             EnclaveReputationTier reputationTier
         )
         {

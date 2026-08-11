@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using RimWorld;
 using RimWorld.Planet;
@@ -29,6 +30,7 @@ namespace IdeologyExpandedEnclaves
             );
 
             Find.WorldObjects.Add(camp);
+            EnclaveWorldTestTools.RegisterCreatedWorldObject(camp);
             Find.WorldSelector.Select(camp);
 
             LongEventHandler.QueueLongEvent(
@@ -203,8 +205,12 @@ namespace IdeologyExpandedEnclaves
 
             StringBuilder report = new StringBuilder();
 
+            report.AppendLine("IDENTITY");
             report.AppendLine("Enclave: " + camp.Data.Name);
+            report.AppendLine("World object ID: " + camp.ID);
             report.AppendLine("Population: " + camp.Data.Population);
+            report.AppendLine();
+            report.AppendLine("IDEOLOGY");
             report.AppendLine(
                 "Ideology type: " +
                 EnclaveIdeologyUtility.GetTypeLabel(camp.Data)
@@ -213,6 +219,9 @@ namespace IdeologyExpandedEnclaves
                 "Actual Ideo: " +
                 DescribeIdeo(camp.Data)
             );
+            AppendIdeologyAlignment(report, camp);
+            report.AppendLine();
+            report.AppendLine("DEVELOPMENT");
             report.AppendLine(
                 "Development: " +
                 EnclaveDevelopmentUtility.GetDisplayName(camp.Data) +
@@ -224,11 +233,17 @@ namespace IdeologyExpandedEnclaves
                 "Development initial population: " +
                 camp.Data.DevelopmentTierInitialPopulation
             );
+            report.AppendLine();
+            report.AppendLine("PLAYER RELATIONSHIP");
             report.AppendLine(
                 "Reputation: " +
                 camp.Data.Reputation +
                 " — " +
                 camp.Data.ReputationTierLabel
+            );
+            report.AppendLine(
+                "Locally hostile: " +
+                EnclaveRelationshipUtility.IsLocallyHostile(camp)
             );
             Pawn factionPawn =
                 camp.PawnRoles?.GetPawn(EnclavePawnRole.Leader) ??
@@ -254,7 +269,8 @@ namespace IdeologyExpandedEnclaves
                 "Registered enclave pawns: " +
                 (camp.PawnMembers?.Members?.Count ?? 0)
             );
-            AppendIdeologyAlignment(report, camp);
+            report.AppendLine();
+            report.AppendLine("ROLES");
             report.AppendLine(
                 "Leader: " +
                 DescribePawn(camp.PawnRoles?.GetPawn(EnclavePawnRole.Leader))
@@ -287,6 +303,8 @@ namespace IdeologyExpandedEnclaves
                 }
             }
 
+            report.AppendLine();
+            report.AppendLine("PERSISTENT SYSTEMS");
             report.AppendLine(
                 "Layout: " + camp.Data.DescribeLayoutAssignments()
             );
@@ -311,10 +329,149 @@ namespace IdeologyExpandedEnclaves
                 }
             }
 
+            report.AppendLine();
+            AppendNearbyInfluence(report, camp);
+
             string reportText = report.ToString().TrimEnd();
 
             Log.Message("[IEE] DEV enclave test state\n" + reportText);
             Find.WindowStack.Add(new Dialog_MessageBox(reportText));
+        }
+
+        private static void AppendNearbyInfluence(
+            StringBuilder report,
+            PilgrimCamp camp
+        )
+        {
+            List<EnclaveNeighborInfo> neighbors =
+                EnclaveProximityUtility.GetNearbyNeighbors(camp);
+
+            report.AppendLine("WORLD");
+            report.AppendLine("Tile: " + camp.Tile);
+            report.AppendLine("Qualifying neighbors:");
+
+            if (neighbors.Count == 0)
+            {
+                report.AppendLine("  None within 30 tiles");
+            }
+            else
+            {
+                foreach (EnclaveNeighborInfo neighbor in neighbors)
+                {
+                    report.Append("  ");
+                    report.Append(neighbor.Label);
+                    report.Append(" \u2014 ");
+                    report.Append(
+                        neighbor.DistanceInTiles.ToString("0.#")
+                    );
+                    report.Append(" tiles \u2014 ");
+                    report.Append(
+                        EnclaveProximityUtility
+                            .GetDistanceBandDisplayName(
+                                neighbor.DistanceBand
+                            )
+                    );
+                    report.Append(" \u2014 ");
+                    report.Append(
+                        GetNeighborDescription(camp, neighbor)
+                    );
+                    report.Append(" \u2014 influence ");
+                    report.Append(
+                        FormatSignedScore(neighbor.Influence.Total)
+                    );
+                    report.AppendLine();
+                }
+            }
+
+            report.AppendLine();
+            report.AppendLine("INTER-ENCLAVE");
+            bool hasEnclaveNeighbor = false;
+
+            foreach (EnclaveNeighborInfo neighbor in neighbors)
+            {
+                if (
+                    neighbor.NeighborType !=
+                        EnclaveNeighborType.Enclave
+                )
+                {
+                    continue;
+                }
+
+                hasEnclaveNeighbor = true;
+                report.AppendLine(
+                    "  " +
+                    neighbor.Label +
+                    ": " +
+                    EnclaveIdeologyCompatibilityUtility.GetDisplayName(
+                        neighbor.IdeologyCompatibility
+                    ) +
+                    " compatibility; " +
+                    (neighbor.RelationshipState?.ToString() ??
+                        "relationship unavailable") +
+                    (neighbor.RelationshipScore.HasValue
+                        ? " (" +
+                            FormatSignedScore(
+                                neighbor.RelationshipScore.Value
+                            ) +
+                            ")"
+                        : string.Empty)
+                );
+            }
+
+            if (!hasEnclaveNeighbor)
+            {
+                report.AppendLine("  No nearby enclave relationships");
+            }
+        }
+
+        private static string GetNeighborDescription(
+            PilgrimCamp camp,
+            EnclaveNeighborInfo neighbor
+        )
+        {
+            switch (neighbor.NeighborType)
+            {
+                case EnclaveNeighborType.Enclave:
+                    return
+                        neighbor.IdeologyType +
+                        " \u2014 " +
+                        EnclaveIdeologyCompatibilityUtility
+                            .GetDisplayName(
+                                neighbor.IdeologyCompatibility
+                            ) +
+                        " \u2014 " +
+                        (neighbor.RelationshipState?.ToString() ??
+                            "Relationship unavailable") +
+                        (neighbor.RelationshipScore.HasValue
+                            ? " (" +
+                                FormatSignedScore(
+                                    neighbor.RelationshipScore.Value
+                                ) +
+                                ")"
+                            : string.Empty);
+                case EnclaveNeighborType.PlayerSettlement:
+                    return
+                        "Player Settlement \u2014 " +
+                        (camp.Data?.ReputationTierLabel ?? "Neutral") +
+                        " reputation (" +
+                        FormatSignedScore(
+                            neighbor.Influence.ReputationWeight
+                        ) +
+                        ")";
+                case EnclaveNeighborType.FriendlyFactionSettlement:
+                    return "Friendly Faction Settlement";
+                case EnclaveNeighborType.HostileFactionSettlement:
+                    return "Hostile Faction Settlement";
+                default:
+                    return "Neutral Faction Settlement";
+            }
+        }
+
+        private static string FormatSignedScore(int score)
+        {
+            return score >= 0
+                ? "+" + score
+                : score.ToString();
         }
 
         private static void AppendIdeologyAlignment(
