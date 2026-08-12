@@ -52,6 +52,7 @@ namespace IdeologyExpandedEnclaves
             List<string> playerRelationshipLines =
                 BuildPlayerRelationshipLines();
             List<string> localStatusLines = BuildLocalStatusLines();
+            List<string> needsLines = BuildNeedsLines();
             List<string> nearbyInfluenceLines =
                 BuildNearbyInfluenceLines(neighbors);
 
@@ -61,8 +62,9 @@ namespace IdeologyExpandedEnclaves
                 GetSectionHeight(viewWidth, leadershipLines) +
                 GetSectionHeight(viewWidth, playerRelationshipLines) +
                 GetSectionHeight(viewWidth, localStatusLines) +
+                GetSectionHeight(viewWidth, needsLines) +
                 GetSectionHeight(viewWidth, nearbyInfluenceLines) +
-                SectionSpacing * 4f;
+                SectionSpacing * 5f;
             Rect outRect = new Rect(
                 inRect.x,
                 inRect.y + 40f,
@@ -107,6 +109,12 @@ namespace IdeologyExpandedEnclaves
                 viewWidth,
                 "Local Status",
                 localStatusLines
+            );
+            DrawSection(
+                ref y,
+                viewWidth,
+                "Needs",
+                needsLines
             );
             DrawSection(
                 ref y,
@@ -217,6 +225,50 @@ namespace IdeologyExpandedEnclaves
                 lines.Add(
                     "Members of this enclave will attack visiting " +
                     "colonists and caravan animals."
+                );
+            }
+
+            return lines;
+        }
+
+        private List<string> BuildNeedsLines()
+        {
+            List<EnclaveNeedRecord> shortages =
+                EnclaveNeedsUtility.GetShortages(camp);
+            List<string> lines = new List<string>();
+
+            if (shortages.Count == 0)
+            {
+                lines.Add("No significant shortages");
+            }
+            else
+            {
+                foreach (
+                    EnclaveNeedRecord need in
+                    EnclaveNeedsUtility.GetNeeds(camp)
+                )
+                {
+                    lines.Add(
+                        EnclaveNeedsUtility.GetNeedLabel(need.Type) +
+                        " \u2014 " +
+                        need.Severity
+                    );
+                }
+            }
+
+            EnclaveQuestRequest request =
+                EnclaveQuestService.GetActiveSupplyRequest(camp);
+
+            if (request != null)
+            {
+                lines.Add(
+                    "Active Supply Request: " +
+                    request.RequestedQuantity +
+                    " " +
+                    request.RequestedThingDef.label +
+                    " \u2014 +" +
+                    request.ReputationReward +
+                    " reputation"
                 );
             }
 

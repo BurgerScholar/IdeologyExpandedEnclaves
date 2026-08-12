@@ -89,6 +89,10 @@ namespace IdeologyExpandedEnclaves
                 LongEventHandler.ExecuteWhenFinished(
                     delegate
                     {
+                        EnclaveQuestService
+                            .MigrateMalformedSupplyRequest(
+                                loadedCamp
+                            );
                         EnclaveFactionUtility.EnsureCampFaction(
                             loadedCamp
                         );

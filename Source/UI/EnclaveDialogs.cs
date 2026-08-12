@@ -98,6 +98,65 @@ namespace IdeologyExpandedEnclaves
                 new Dialog_EnclaveSilverDonation(camp, leader)
             );
         }
+
+        public static void ConfirmSupplyRequestDelivery(
+            PilgrimCamp camp,
+            Pawn leader
+        )
+        {
+            string failureReason;
+
+            if (
+                !EnclaveQuestService.SupplyDeliveryContactIsValid(
+                    camp,
+                    leader,
+                    out failureReason
+                )
+            )
+            {
+                Messages.Message(
+                    failureReason,
+                    MessageTypeDefOf.RejectInput
+                );
+                return;
+            }
+
+            EnclaveQuestRequest request =
+                EnclaveQuestService.GetActiveSupplyRequest(camp);
+
+            Find.WindowStack.Add(
+                Dialog_MessageBox.CreateConfirmation(
+                    "Deliver " +
+                    request.RequestedQuantity +
+                    " " +
+                    request.RequestedThingDef.label +
+                    " to " +
+                    camp.Data.Name +
+                    " for +" +
+                    request.ReputationReward +
+                    " reputation? The exact items will be consumed " +
+                    "from the visiting group's inventories.",
+                    delegate
+                    {
+                        string resultMessage;
+                        bool completed =
+                            EnclaveQuestService
+                                .TryCompleteSupplyRequest(
+                                    camp,
+                                    leader,
+                                    out resultMessage
+                                );
+
+                        Messages.Message(
+                            resultMessage,
+                            completed
+                                ? MessageTypeDefOf.PositiveEvent
+                                : MessageTypeDefOf.RejectInput
+                        );
+                    }
+                )
+            );
+        }
     }
 
     public class Dialog_EnclaveSilverDonation : Window

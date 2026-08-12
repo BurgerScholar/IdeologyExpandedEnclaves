@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Verse;
 
 namespace IdeologyExpandedEnclaves
@@ -37,6 +38,17 @@ namespace IdeologyExpandedEnclaves
         public EnclaveLayoutPosition SleepingPosition;
         public EnclaveLayoutPosition StoragePosition;
         public EnclaveLayoutPosition RitualPosition;
+        private List<EnclaveNeedRecord> needs =
+            new List<EnclaveNeedRecord>();
+        private EnclaveQuestRequest activeQuestRequest;
+        private int nextQuestRequestId = 1;
+        private int nextQuestRequestEligibleTick;
+
+        public IReadOnlyList<EnclaveNeedRecord> Needs => needs;
+        public EnclaveQuestRequest ActiveQuestRequest =>
+            activeQuestRequest;
+        public int NextQuestRequestEligibleTick =>
+            nextQuestRequestEligibleTick;
 
         public EnclaveReputationTier ReputationTier =>
             EnclaveReputation.GetTier(Reputation);
@@ -100,6 +112,25 @@ namespace IdeologyExpandedEnclaves
                 "ritualPosition",
                 EnclaveLayoutPosition.Unassigned
             );
+            Scribe_Collections.Look(
+                ref needs,
+                "needs",
+                LookMode.Deep
+            );
+            Scribe_Deep.Look(
+                ref activeQuestRequest,
+                "activeQuestRequest"
+            );
+            Scribe_Values.Look(
+                ref nextQuestRequestId,
+                "nextQuestRequestId",
+                1
+            );
+            Scribe_Values.Look(
+                ref nextQuestRequestEligibleTick,
+                "nextQuestRequestEligibleTick",
+                0
+            );
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
@@ -114,6 +145,19 @@ namespace IdeologyExpandedEnclaves
                 EnclaveDevelopmentUtility.EnsureTier(
                     this,
                     reason: "existing-save migration"
+                );
+                EnclaveNeedsUtility.EnsureNeeds(
+                    this,
+                    "existing-save migration"
+                );
+
+                nextQuestRequestId = Math.Max(
+                    1,
+                    nextQuestRequestId
+                );
+                nextQuestRequestEligibleTick = Math.Max(
+                    0,
+                    nextQuestRequestEligibleTick
                 );
 
                 if (
@@ -284,6 +328,34 @@ namespace IdeologyExpandedEnclaves
             return
                 position >= EnclaveLayoutPosition.North &&
                 position <= EnclaveLayoutPosition.West;
+        }
+
+        internal List<EnclaveNeedRecord> MutableNeeds
+        {
+            get => needs;
+            set => needs = value;
+        }
+
+        internal int AllocateQuestRequestId()
+        {
+            int allocated = nextQuestRequestId;
+            nextQuestRequestId = Math.Max(
+                nextQuestRequestId + 1,
+                1
+            );
+            return allocated;
+        }
+
+        internal void SetActiveQuestRequest(
+            EnclaveQuestRequest request
+        )
+        {
+            activeQuestRequest = request;
+        }
+
+        internal void SetNextQuestRequestEligibleTick(int tick)
+        {
+            nextQuestRequestEligibleTick = Math.Max(0, tick);
         }
     }
 }

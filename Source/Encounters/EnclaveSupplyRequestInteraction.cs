@@ -5,23 +5,7 @@ using Verse.AI;
 
 namespace IdeologyExpandedEnclaves
 {
-    [DefOf]
-    public static class EnclaveJobDefOf
-    {
-        public static JobDef IEE_ViewEnclaveRecruitmentCandidates;
-        public static JobDef IEE_TradeWithEnclaveTrader;
-        public static JobDef IEE_DonateSilverToEnclave;
-        public static JobDef IEE_DeliverEnclaveSupplies;
-
-        static EnclaveJobDefOf()
-        {
-            DefOfHelper.EnsureInitializedInCtor(
-                typeof(EnclaveJobDefOf)
-            );
-        }
-    }
-
-    public class FloatMenuOptionProvider_EnclaveRecruiter
+    public sealed class FloatMenuOptionProvider_EnclaveSupplyRequest
         : FloatMenuOptionProvider
     {
         protected override bool Drafted => true;
@@ -37,9 +21,17 @@ namespace IdeologyExpandedEnclaves
 
             if (
                 camp == null ||
-                camp.PawnRoles?.GetPawn(EnclavePawnRole.Recruiter) !=
+                camp.PawnRoles?.GetPawn(EnclavePawnRole.Leader) !=
                     clickedPawn
             )
+            {
+                yield break;
+            }
+
+            EnclaveQuestRequest request =
+                EnclaveQuestService.GetActiveSupplyRequest(camp);
+
+            if (request == null)
             {
                 yield break;
             }
@@ -57,26 +49,56 @@ namespace IdeologyExpandedEnclaves
             }
 
             string label =
-                "Ask " +
-                clickedPawn.LabelShort +
-                " about recruitment";
-            string unavailableReason;
+                "Deliver " +
+                request.RequestedQuantity +
+                " " +
+                request.RequestedThingDef.label +
+                " to " +
+                (camp.Data?.Name ?? "the enclave");
+            string failureReason;
 
             if (
-                !EnclaveRecruitmentService.RecruitmentIsAvailable(
+                !EnclaveQuestService.SupplyDeliveryContactIsValid(
                     camp,
-                    out unavailableReason
+                    clickedPawn,
+                    out failureReason
                 )
             )
             {
                 yield return new FloatMenuOption(
-                    "Recruitment unavailable (" +
-                    (camp.Data?.ReputationTierLabel ?? "Unknown") +
+                    "Supply delivery unavailable",
+                    delegate
+                    {
+                        Messages.Message(
+                            failureReason,
+                            clickedPawn,
+                            MessageTypeDefOf.RejectInput
+                        );
+                    }
+                );
+                yield break;
+            }
+
+            int available =
+                EnclaveQuestService.GetAvailableRequestedItems(camp);
+
+            if (available < request.RequestedQuantity)
+            {
+                yield return new FloatMenuOption(
+                    label +
+                    " (carrying " +
+                    available +
                     ")",
                     delegate
                     {
                         Messages.Message(
-                            unavailableReason,
+                            "The visiting group is carrying " +
+                            available +
+                            " of the required " +
+                            request.RequestedQuantity +
+                            " " +
+                            request.RequestedThingDef.label +
+                            ".",
                             clickedPawn,
                             MessageTypeDefOf.RejectInput
                         );
@@ -97,7 +119,6 @@ namespace IdeologyExpandedEnclaves
                     label + ": No path",
                     null
                 );
-
                 yield break;
             }
 
@@ -106,8 +127,7 @@ namespace IdeologyExpandedEnclaves
                 delegate
                 {
                     Job job = JobMaker.MakeJob(
-                        EnclaveJobDefOf
-                            .IEE_ViewEnclaveRecruitmentCandidates,
+                        EnclaveJobDefOf.IEE_DeliverEnclaveSupplies,
                         clickedPawn
                     );
                     job.playerForced = true;
@@ -117,8 +137,7 @@ namespace IdeologyExpandedEnclaves
         }
     }
 
-    public class JobDriver_ViewEnclaveRecruitmentCandidates
-        : JobDriver
+    public sealed class JobDriver_DeliverEnclaveSupplies : JobDriver
     {
         public override bool TryMakePreToilReservations(
             bool errorOnFailed
@@ -135,52 +154,31 @@ namespace IdeologyExpandedEnclaves
                 TargetIndex.A,
                 PathEndMode.Touch
             );
-            yield return Toils_General.Do(OpenCandidateBrowser);
+            yield return Toils_General.Do(OpenDeliveryConfirmation);
         }
 
-        private void OpenCandidateBrowser()
+        private void OpenDeliveryConfirmation()
         {
-            Pawn recruiter = TargetPawnA;
+            Pawn leader = TargetPawnA;
             PilgrimCamp camp = pawn?.Map?.Parent as PilgrimCamp;
+            string failureReason;
 
             if (
-                camp == null ||
-                recruiter == null ||
-                recruiter.Dead ||
-                !recruiter.Spawned ||
-                camp.PawnRoles?.GetPawn(EnclavePawnRole.Recruiter) !=
-                    recruiter
-            )
-            {
-                Messages.Message(
-                    "The enclave Recruiter is no longer available.",
-                    MessageTypeDefOf.RejectInput
-                );
-
-                return;
-            }
-
-            string unavailableReason;
-
-            if (
-                !EnclaveRecruitmentService.RecruitmentIsAvailable(
+                !EnclaveQuestService.SupplyDeliveryContactIsValid(
                     camp,
-                    out unavailableReason
+                    leader,
+                    out failureReason
                 )
             )
             {
                 Messages.Message(
-                    unavailableReason,
-                    recruiter,
+                    failureReason,
                     MessageTypeDefOf.RejectInput
                 );
                 return;
             }
 
-            EnclaveDialogs.OpenRecruitmentCandidates(
-                camp,
-                recruiter
-            );
+            EnclaveDialogs.ConfirmSupplyRequestDelivery(camp, leader);
         }
     }
 }

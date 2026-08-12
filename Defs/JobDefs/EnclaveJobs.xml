@@ -15,4 +15,9 @@
     <driverClass>IdeologyExpandedEnclaves.JobDriver_DonateSilverToEnclave</driverClass>
     <reportString>Approaching the enclave Leader to donate silver.</reportString>
   </JobDef>
+  <JobDef>
+    <defName>IEE_DeliverEnclaveSupplies</defName>
+    <driverClass>IdeologyExpandedEnclaves.JobDriver_DeliverEnclaveSupplies</driverClass>
+    <reportString>Approaching the enclave Leader to deliver requested supplies.</reportString>
+  </JobDef>
 </Defs>

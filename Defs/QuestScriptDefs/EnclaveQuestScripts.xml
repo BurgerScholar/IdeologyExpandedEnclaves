@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+
+  <QuestScriptDef>
+    <defName>IEE_EnclaveSupplyRequest</defName>
+    <randomlySelectable>false</randomlySelectable>
+    <sendAvailableLetter>false</sendAvailableLetter>
+    <expireDaysRange>20~20</expireDaysRange>
+    <root Class="QuestNode_Sequence">
+      <nodes />
+    </root>
+  </QuestScriptDef>
+
+</Defs>

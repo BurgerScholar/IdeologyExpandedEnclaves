@@ -43,6 +43,22 @@ namespace IdeologyExpandedEnclaves
                         delegate { EnclaveDevTools.ShowTestState(camp); }
                     ),
                     new FloatMenuOption(
+                        "Show Needs",
+                        delegate { ShowNeeds(camp); }
+                    ),
+                    new FloatMenuOption(
+                        "Evaluate Needs Now",
+                        delegate { EvaluateNeedsNow(camp); }
+                    ),
+                    new FloatMenuOption(
+                        "Set Need Severity",
+                        delegate { ShowNeedTypeMenu(camp); }
+                    ),
+                    new FloatMenuOption(
+                        "Create Critical Shortage",
+                        delegate { ShowCriticalShortageMenu(camp); }
+                    ),
+                    new FloatMenuOption(
                         "Show Nearby Influence",
                         delegate { ShowNearbyInfluence(camp); }
                     ),
@@ -93,6 +109,240 @@ namespace IdeologyExpandedEnclaves
                 };
 
             Find.WindowStack.Add(new FloatMenu(options));
+        }
+
+        private static void ShowNeeds(PilgrimCamp camp)
+        {
+            if (!CanUse(camp))
+            {
+                return;
+            }
+
+            StringBuilder report = new StringBuilder();
+
+            report.AppendLine("Needs for " + camp.Data.Name);
+
+            foreach (
+                EnclaveNeedRecord need in
+                EnclaveNeedsUtility.GetNeeds(camp)
+            )
+            {
+                report.AppendLine(
+                    EnclaveNeedsUtility.GetNeedLabel(need.Type) +
+                    ": " +
+                    need.Severity +
+                    "; supply " +
+                    need.EstimatedSupply +
+                    "/" +
+                    need.TargetAmount +
+                    "; shortage " +
+                    need.ShortageLevel +
+                    "; last evaluation tick " +
+                    need.LastEvaluationTick
+                );
+            }
+
+            report.AppendLine();
+            EnclaveQuestRequest request =
+                EnclaveQuestService.GetActiveSupplyRequest(camp);
+            report.AppendLine(
+                "Supply Request: " +
+                (request == null
+                    ? "None active"
+                    : EnclaveQuestService.DescribeRequest(request))
+            );
+            report.AppendLine(
+                "Next request eligible tick: " +
+                camp.Data.NextQuestRequestEligibleTick
+            );
+
+            ShowReport("DEV enclave needs", report.ToString().TrimEnd());
+        }
+
+        private static void EvaluateNeedsNow(PilgrimCamp camp)
+        {
+            if (!CanUse(camp))
+            {
+                return;
+            }
+
+            bool changed =
+                EnclaveNeedsService.EvaluateCampAndGenerateRequest(camp);
+
+            Messages.Message(
+                "Evaluated production needs for " +
+                camp.Data.Name +
+                ". State changed: " +
+                changed +
+                ".",
+                MessageTypeDefOf.NeutralEvent
+            );
+            ShowNeeds(camp);
+        }
+
+        private static void ShowNeedTypeMenu(PilgrimCamp camp)
+        {
+            List<FloatMenuOption> options =
+                new List<FloatMenuOption>();
+
+            foreach (
+                EnclaveNeedType needType in
+                (EnclaveNeedType[])System.Enum.GetValues(
+                    typeof(EnclaveNeedType)
+                )
+            )
+            {
+                EnclaveNeedType selectedType = needType;
+
+                options.Add(
+                    new FloatMenuOption(
+                        EnclaveNeedsUtility.GetNeedLabel(selectedType),
+                        delegate
+                        {
+                            ShowNeedSeverityMenu(camp, selectedType);
+                        }
+                    )
+                );
+            }
+
+            ShowValueMenu(options);
+        }
+
+        private static void ShowNeedSeverityMenu(
+            PilgrimCamp camp,
+            EnclaveNeedType needType
+        )
+        {
+            List<FloatMenuOption> options =
+                new List<FloatMenuOption>();
+
+            foreach (
+                EnclaveNeedSeverity severity in
+                (EnclaveNeedSeverity[])System.Enum.GetValues(
+                    typeof(EnclaveNeedSeverity)
+                )
+            )
+            {
+                EnclaveNeedSeverity selectedSeverity = severity;
+
+                options.Add(
+                    new FloatMenuOption(
+                        selectedSeverity.ToString(),
+                        delegate
+                        {
+                            SetNeedSeverity(
+                                camp,
+                                needType,
+                                selectedSeverity
+                            );
+                        }
+                    )
+                );
+            }
+
+            ShowValueMenu(options);
+        }
+
+        private static void SetNeedSeverity(
+            PilgrimCamp camp,
+            EnclaveNeedType needType,
+            EnclaveNeedSeverity severity
+        )
+        {
+            bool changed = EnclaveNeedsUtility.SetNeedSeverity(
+                camp.Data,
+                needType,
+                severity,
+                "developer need test control"
+            );
+
+            Messages.Message(
+                changed
+                    ? EnclaveNeedsUtility.GetNeedLabel(needType) +
+                        " need set to " +
+                        severity +
+                        "."
+                    : "The need severity could not be changed.",
+                changed
+                    ? MessageTypeDefOf.NeutralEvent
+                    : MessageTypeDefOf.RejectInput
+            );
+        }
+
+        private static void ShowCriticalShortageMenu(PilgrimCamp camp)
+        {
+            List<FloatMenuOption> options =
+                new List<FloatMenuOption>();
+
+            foreach (
+                EnclaveNeedType needType in
+                (EnclaveNeedType[])System.Enum.GetValues(
+                    typeof(EnclaveNeedType)
+                )
+            )
+            {
+                EnclaveNeedType selectedType = needType;
+
+                options.Add(
+                    new FloatMenuOption(
+                        EnclaveNeedsUtility.GetNeedLabel(selectedType),
+                        delegate
+                        {
+                            CreateCriticalShortage(
+                                camp,
+                                selectedType
+                            );
+                        }
+                    )
+                );
+            }
+
+            ShowValueMenu(options);
+        }
+
+        private static void CreateCriticalShortage(
+            PilgrimCamp camp,
+            EnclaveNeedType needType
+        )
+        {
+            if (
+                !EnclaveNeedsUtility.SetNeedSeverity(
+                    camp.Data,
+                    needType,
+                    EnclaveNeedSeverity.Critical,
+                    "developer critical-shortage preset"
+                )
+            )
+            {
+                Messages.Message(
+                    "The critical shortage could not be created.",
+                    MessageTypeDefOf.RejectInput
+                );
+                return;
+            }
+
+            EnclaveQuestRequest generatedRequest;
+            bool generated =
+                EnclaveQuestService.TryGenerateSupplyRequest(
+                    camp,
+                    out generatedRequest
+                );
+
+            Messages.Message(
+                "Created a Critical " +
+                EnclaveNeedsUtility.GetNeedLabel(needType) +
+                " shortage for " +
+                camp.Data.Name +
+                "." +
+                (generated
+                    ? " A production Supply Request was generated."
+                    : " No new request was generated because an active " +
+                        "request, cooldown, hostility, or quest eligibility " +
+                        "condition prevented it."),
+                generated
+                    ? MessageTypeDefOf.PositiveEvent
+                    : MessageTypeDefOf.NeutralEvent
+            );
         }
 
         public static void ShowNearbyInfluence(PilgrimCamp camp)

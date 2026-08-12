@@ -47,6 +47,10 @@ namespace IdeologyExpandedEnclaves
                 data,
                 "new enclave generation"
             );
+            EnclaveNeedsUtility.EnsureNeeds(
+                data,
+                "new enclave generation"
+            );
 
             Log.Message(
                 "[IEE] Generated persistent layout for " +
