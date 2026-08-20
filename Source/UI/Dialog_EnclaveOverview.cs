@@ -136,6 +136,8 @@ namespace IdeologyExpandedEnclaves
                 "Population: " + camp.Data.Population,
                 "Development: " +
                     EnclaveDevelopmentUtility.GetDisplayName(camp.Data),
+                "Development profile: " +
+                    EnclaveDevelopmentUtility.GetDescription(camp.Data),
                 "Ideology: " +
                     EnclaveIdeologyUtility.GetActualIdeoLabel(camp.Data),
                 "Ideology type: " +

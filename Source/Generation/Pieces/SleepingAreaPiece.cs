@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 
@@ -7,84 +9,100 @@ namespace IdeologyExpandedEnclaves
     {
         public static void Generate(LayoutContext context)
         {
-            int bedCount = context.Population;
+            int bedCount = Math.Max(
+                1,
+                Math.Min(context.Population, 12)
+            );
+            EnclaveDevelopmentVisualProfile profile =
+                context.VisualProfile;
+            List<IntVec3> bedCells =
+                EnclaveLayoutPlacementUtility.GetCenteredGridCells(
+                    context.Anchors.Sleeping,
+                    bedCount,
+                    profile.SleepingColumns,
+                    profile.SleepingSpacing,
+                    profile.StaggerSleepingRows
+                );
+            ThingDef sleepingDef = profile.SleepingDef;
+            ThingDef stuffDef =
+                EnclaveDevelopmentVisualUtility.GetFurnitureStuff(
+                    profile,
+                    sleepingDef
+                );
+            int bedsPlaced = 0;
 
-            if (bedCount < 1)
+            foreach (IntVec3 cell in bedCells)
             {
-                bedCount = 1;
+                Thing bed;
+
+                if (
+                    EnclaveLayoutPlacementUtility.TryPlaceBuilding(
+                        context,
+                        context.Zones.Sleeping,
+                        sleepingDef,
+                        stuffDef,
+                        Rot4.North,
+                        new[] { cell },
+                        out bed
+                    )
+                )
+                {
+                    bedsPlaced++;
+                }
             }
 
-            if (bedCount > 12)
-            {
-                bedCount = 12;
-            }
+            int lightsPlaced = PlaceLights(context);
 
-            int columns = 4;
-            int rows = (bedCount + columns - 1) / columns;
+            Log.Message(
+                "[IEE] Sleeping area: placed " +
+                bedsPlaced +
+                "/" +
+                bedCount +
+                " " +
+                sleepingDef.label +
+                " spaces for " +
+                context.Population +
+                " pilgrims and " +
+                lightsPlaced +
+                "/" +
+                profile.SleepingLightCount +
+                " lights."
+            );
+        }
 
+        private static int PlaceLights(LayoutContext context)
+        {
+            int target = context.VisualProfile.SleepingLightCount;
+            List<IntVec3> candidates =
+                EnclaveLayoutPlacementUtility.GetCornerCells(
+                    context.Zones.Sleeping
+                );
             int placed = 0;
 
-            for (int row = 0; row < rows; row++)
+            for (int index = 0; index < target; index++)
             {
-                for (int column = 0; column < columns; column++)
+                Thing light;
+
+                if (
+                    EnclaveLayoutPlacementUtility.TryPlaceBuilding(
+                        context,
+                        context.Zones.Sleeping,
+                        ThingDefOf.TorchLamp,
+                        null,
+                        Rot4.North,
+                        new[]
+                        {
+                            candidates[index % candidates.Count]
+                        },
+                        out light
+                    )
+                )
                 {
-                    if (placed >= bedCount)
-                    {
-                        break;
-                    }
-
-                    IntVec3 startCell =
-                        context.Zones.Sleeping.Area.Min;
-
-                    IntVec3 cell =
-                        startCell +
-                        new IntVec3(
-                             column * 2,
-                             0,
-                             row * 2
-                        );
-
-                   if (!context.Zones.Sleeping.Contains(cell) ||
-                      !CanPlaceAt(cell, context.Map))
-                    {
-                      continue;
-          } 
-
-                    Thing bed =
-                        ThingMaker.MakeThing(
-                            ThingDefOf.Bed,
-                            ThingDefOf.WoodLog
-                        );
-
-                    GenSpawn.Spawn(
-                        bed,
-                        cell,
-                        context.Map,
-                        Rot4.North
-                    );
-
                     placed++;
                 }
             }
 
-            Log.Message(
-                "[IEE] Placed " +
-                placed +
-                " beds for " +
-                context.Population +
-                " pilgrims."
-            );
-        }
-
-        private static bool CanPlaceAt(
-            IntVec3 cell,
-            Map map
-        )
-        {
-            return
-                cell.InBounds(map) &&
-                cell.Standable(map) &&
-                cell.GetFirstBuilding(map) == null;
+            return placed;
         }
     }
 }

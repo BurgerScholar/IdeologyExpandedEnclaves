@@ -87,6 +87,13 @@ namespace IdeologyExpandedEnclaves
                         delegate { ShowDevelopmentTierMenu(camp); }
                     ),
                     new FloatMenuOption(
+                        "Camp Development Testing",
+                        delegate
+                        {
+                            ShowCampDevelopmentTestingMenu();
+                        }
+                    ),
+                    new FloatMenuOption(
                         "Overview Test Presets",
                         delegate { ShowPresetMenu(camp); }
                     ),
@@ -776,6 +783,43 @@ namespace IdeologyExpandedEnclaves
             ShowValueMenu(options);
         }
 
+        private static void ShowCampDevelopmentTestingMenu()
+        {
+            List<FloatMenuOption> options =
+                new List<FloatMenuOption>();
+            EnclaveDevelopmentTier[] tiers =
+            {
+                EnclaveDevelopmentTier.TierI,
+                EnclaveDevelopmentTier.TierII,
+                EnclaveDevelopmentTier.TierIII,
+                EnclaveDevelopmentTier.TierIV
+            };
+
+            foreach (EnclaveDevelopmentTier tier in tiers)
+            {
+                EnclaveDevelopmentTier selectedTier = tier;
+
+                options.Add(
+                    new FloatMenuOption(
+                        "Spawn " +
+                        EnclaveDevelopmentUtility.GetDisplayName(
+                            selectedTier
+                        ) +
+                        " Test Enclave",
+                        delegate
+                        {
+                            EnclaveDevTools
+                                .CreateDevelopmentTestEnclave(
+                                    selectedTier
+                                );
+                        }
+                    )
+                );
+            }
+
+            ShowValueMenu(options);
+        }
+
         private static void SetDevelopmentTier(
             PilgrimCamp camp,
             EnclaveDevelopmentTier tier
@@ -806,7 +850,7 @@ namespace IdeologyExpandedEnclaves
                 EnclaveDevelopmentUtility.GetDisplayName(tier) +
                 ". Population unchanged at " +
                 camp.Data.Population +
-                ".",
+                ". Existing generated maps are not remodeled.",
                 MessageTypeDefOf.NeutralEvent
             );
         }

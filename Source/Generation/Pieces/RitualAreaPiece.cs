@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 
@@ -7,113 +9,136 @@ namespace IdeologyExpandedEnclaves
     {
         public static void Generate(LayoutContext context)
         {
-            IntVec3 focalCell;
+            Thing focalObject;
 
-            if (!TryPlaceFocalObject(context, out focalCell))
+            if (
+                !EnclaveLayoutPlacementUtility.TryPlaceBuilding(
+                    context,
+                    context.Zones.Ritual,
+                    ThingDefOf.TorchLamp,
+                    null,
+                    Rot4.North,
+                    new[] { context.Anchors.Ritual },
+                    out focalObject
+                )
+            )
             {
                 Log.Warning(
-                    "[IEE] Could not place a ritual focal object."
+                    "[IEE] Could not place a ritual focal object; " +
+                    "the remaining ritual embellishments were skipped."
                 );
-
                 return;
             }
 
-            PlaceSeating(context, focalCell);
-        }
-
-        private static bool TryPlaceFocalObject(
-            LayoutContext context,
-            out IntVec3 focalCell
-        )
-        {
-            IntVec3[] candidateCells =
-            {
-                context.Anchors.Ritual,
-                context.Anchors.Ritual + new IntVec3(-1, 0, 0),
-                context.Anchors.Ritual + new IntVec3(1, 0, 0),
-                context.Anchors.Ritual + new IntVec3(0, 0, -1),
-                context.Anchors.Ritual + new IntVec3(0, 0, 1)
-            };
-
-            foreach (IntVec3 cell in candidateCells)
-            {
-                if (!context.Zones.Ritual.Contains(cell) ||
-                    !CanPlaceAt(cell, context.Map))
-                {
-                    continue;
-                }
-
-                Thing torchLamp = ThingMaker.MakeThing(
-                    ThingDefOf.TorchLamp
-                );
-
-                GenSpawn.Spawn(
-                    torchLamp,
-                    cell,
-                    context.Map
-                );
-
-                focalCell = cell;
-                return true;
-            }
-
-            focalCell = IntVec3.Invalid;
-            return false;
-        }
-
-        private static void PlaceSeating(
-            LayoutContext context,
-            IntVec3 focalCell
-        )
-        {
-            IntVec3[] stoolCells =
-            {
-                focalCell + new IntVec3(-2, 0, 0),
-                focalCell + new IntVec3(2, 0, 0),
-                focalCell + new IntVec3(0, 0, -2),
-                focalCell + new IntVec3(0, 0, 2)
-            };
-
-            int placed = 0;
-
-            foreach (IntVec3 cell in stoolCells)
-            {
-                if (!context.Zones.Ritual.Contains(cell) ||
-                    !CanPlaceAt(cell, context.Map))
-                {
-                    continue;
-                }
-
-                Thing stool = ThingMaker.MakeThing(
-                    ThingDefOf.Stool,
-                    ThingDefOf.WoodLog
-                );
-
-                GenSpawn.Spawn(
-                    stool,
-                    cell,
-                    context.Map
-                );
-
-                placed++;
-            }
+            int seatsPlaced = PlaceSeating(context);
+            int extraLightsPlaced = PlaceExtraLights(context);
 
             Log.Message(
-                "[IEE] Placed a ritual focal object and " +
-                placed +
-                " stools."
+                "[IEE] Ritual area: focal torch, " +
+                seatsPlaced +
+                "/" +
+                context.VisualProfile.RitualSeatCount +
+                " seats, and " +
+                extraLightsPlaced +
+                "/" +
+                Math.Max(
+                    0,
+                    context.VisualProfile.RitualLightCount - 1
+                ) +
+                " extra lights."
             );
         }
 
-        private static bool CanPlaceAt(
-            IntVec3 cell,
-            Map map
-        )
+        private static int PlaceSeating(LayoutContext context)
         {
-            return
-                cell.InBounds(map) &&
-                cell.Standable(map) &&
-                cell.GetThingList(map).Count == 0;
+            EnclaveDevelopmentVisualProfile profile =
+                context.VisualProfile;
+            List<IntVec3> candidates =
+                EnclaveLayoutPlacementUtility.GetRingCells(
+                    context.Anchors.Ritual,
+                    Math.Max(2, profile.InternalSpacing)
+                );
+            ThingDef seatingDef = profile.SeatingDef;
+            ThingDef stuffDef =
+                EnclaveDevelopmentVisualUtility.GetFurnitureStuff(
+                    profile,
+                    seatingDef
+                );
+            int placed = 0;
+
+            for (
+                int index = 0;
+                index < profile.RitualSeatCount;
+                index++
+            )
+            {
+                IntVec3 preferred = candidates[
+                    index % candidates.Count
+                ];
+                Thing seat;
+
+                if (
+                    EnclaveLayoutPlacementUtility.TryPlaceBuilding(
+                        context,
+                        context.Zones.Ritual,
+                        seatingDef,
+                        stuffDef,
+                        Rot4.North,
+                        new[] { preferred },
+                        out seat
+                    )
+                )
+                {
+                    placed++;
+                }
+            }
+
+            return placed;
+        }
+
+        private static int PlaceExtraLights(LayoutContext context)
+        {
+            int target = Math.Max(
+                0,
+                context.VisualProfile.RitualLightCount - 1
+            );
+            List<IntVec3> candidates =
+                EnclaveLayoutPlacementUtility.GetCornerCells(
+                    context.Zones.Ritual
+                );
+            List<IntVec3> ringCandidates =
+                EnclaveLayoutPlacementUtility.GetRingCells(
+                    context.Anchors.Ritual,
+                    Math.Max(3, context.VisualProfile.InternalSpacing + 1)
+                );
+
+            candidates.AddRange(ringCandidates);
+            int placed = 0;
+
+            for (int index = 0; index < target; index++)
+            {
+                Thing light;
+
+                if (
+                    EnclaveLayoutPlacementUtility.TryPlaceBuilding(
+                        context,
+                        context.Zones.Ritual,
+                        ThingDefOf.TorchLamp,
+                        null,
+                        Rot4.North,
+                        new[]
+                        {
+                            candidates[index % candidates.Count]
+                        },
+                        out light
+                    )
+                )
+                {
+                    placed++;
+                }
+            }
+
+            return placed;
         }
     }
 }

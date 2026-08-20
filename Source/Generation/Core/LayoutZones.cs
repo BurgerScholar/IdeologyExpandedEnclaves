@@ -7,30 +7,33 @@ namespace IdeologyExpandedEnclaves
         public LayoutZone Storage;
         public LayoutZone Ritual;
 
-        public LayoutZones(LayoutAnchors anchors)
+        public LayoutZones(
+            LayoutAnchors anchors,
+            EnclaveDevelopmentVisualProfile profile
+        )
         {
             Gathering = new LayoutZone(
                 anchors.Gathering,
-                10,
-                8
+                profile.GatheringWidth,
+                profile.GatheringHeight
             );
 
             Sleeping = new LayoutZone(
                 anchors.Sleeping,
-                12,
-                10
+                profile.SleepingWidth,
+                profile.SleepingHeight
             );
 
             Storage = new LayoutZone(
                 anchors.Storage,
-                8,
-                8
+                profile.StorageWidth,
+                profile.StorageHeight
             );
 
             Ritual = new LayoutZone(
                 anchors.Ritual,
-                10,
-                8
+                profile.RitualWidth,
+                profile.RitualHeight
             );
         }
     }

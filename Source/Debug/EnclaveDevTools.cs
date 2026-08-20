@@ -13,66 +13,22 @@ namespace IdeologyExpandedEnclaves
 
         public static void CreateQuickTestEnclave()
         {
-            if (!Prefs.DevMode)
+            CreateTestEnclave(null, "quick test");
+        }
+
+        public static void CreateDevelopmentTestEnclave(
+            EnclaveDevelopmentTier tier
+        )
+        {
+            if (
+                tier < EnclaveDevelopmentTier.TierI ||
+                tier > EnclaveDevelopmentTier.TierIV
+            )
             {
                 return;
             }
 
-            WorldObjectDef def =
-                DefDatabase<WorldObjectDef>.GetNamed("IEE_PilgrimCamp");
-            PilgrimCamp camp =
-                (PilgrimCamp)WorldObjectMaker.MakeWorldObject(def);
-
-            camp.Data = EnclaveGenerator.Generate(TestPopulation);
-            camp.Tile = TileFinder.RandomSettlementTileFor(
-                Faction.OfPlayer,
-                mustBeAutoChoosable: false
-            );
-
-            Find.WorldObjects.Add(camp);
-            EnclaveWorldTestTools.RegisterCreatedWorldObject(camp);
-            Find.WorldSelector.Select(camp);
-
-            LongEventHandler.QueueLongEvent(
-                delegate
-                {
-                    Map map =
-                        EnclaveEncounterMapUtility.EnsureMapGenerated(camp);
-
-                    if (map == null)
-                    {
-                        Messages.Message(
-                            "The quick test enclave map could not be generated.",
-                            MessageTypeDefOf.RejectInput
-                        );
-                        return;
-                    }
-
-                    CameraJumper.TryJump(map.Center, map);
-
-                    Messages.Message(
-                        "Created " +
-                        camp.Data.Name +
-                        " with " +
-                        TestPopulation +
-                        " pilgrims and generated its encounter map.",
-                        MessageTypeDefOf.PositiveEvent
-                    );
-
-                    Log.Message(
-                        "[IEE] DEV quick test enclave created: " +
-                        camp.Data.Name +
-                        " at tile " +
-                        camp.Tile +
-                        " with population " +
-                        camp.Data.Population +
-                        "."
-                    );
-                },
-                "GeneratingMap",
-                doAsynchronously: false,
-                exceptionHandler: null
-            );
+            CreateTestEnclave(tier, "camp development visual test");
         }
 
         public static void GiveTestSilver(PilgrimCamp camp)
@@ -233,6 +189,34 @@ namespace IdeologyExpandedEnclaves
                 "Development initial population: " +
                 camp.Data.DevelopmentTierInitialPopulation
             );
+            report.AppendLine(
+                "Description: " +
+                EnclaveDevelopmentUtility.GetDescription(camp.Data)
+            );
+            report.AppendLine();
+            report.AppendLine("GENERATION");
+            report.AppendLine(
+                "Generated map: " +
+                (camp.Map == null
+                    ? "No"
+                    : "Yes (existing map remains authoritative)")
+            );
+            report.AppendLine(
+                "Layout directions: " +
+                camp.Data.DescribeLayoutAssignments()
+            );
+            EnclaveDevelopmentVisualProfile visualProfile =
+                EnclaveDevelopmentVisualUtility.GetProfile(camp.Data);
+            report.AppendLine(
+                "Visual profile: " +
+                visualProfile.DiagnosticSummary
+            );
+            report.AppendLine(
+                "Organization: " +
+                visualProfile.OrganizationLabel +
+                "; ideology flavor " +
+                visualProfile.IdeologyType
+            );
             report.AppendLine();
             report.AppendLine("PLAYER RELATIONSHIP");
             report.AppendLine(
@@ -310,9 +294,6 @@ namespace IdeologyExpandedEnclaves
             report.AppendLine();
             report.AppendLine("PERSISTENT SYSTEMS");
             report.AppendLine(
-                "Layout: " + camp.Data.DescribeLayoutAssignments()
-            );
-            report.AppendLine(
                 "Trader stock grants: " +
                 camp.Data.HighestTraderStockTierGranted
             );
@@ -340,6 +321,100 @@ namespace IdeologyExpandedEnclaves
 
             Log.Message("[IEE] DEV enclave test state\n" + reportText);
             Find.WindowStack.Add(new Dialog_MessageBox(reportText));
+        }
+
+        private static void CreateTestEnclave(
+            EnclaveDevelopmentTier? requestedTier,
+            string testLabel
+        )
+        {
+            if (!Prefs.DevMode)
+            {
+                return;
+            }
+
+            WorldObjectDef def =
+                DefDatabase<WorldObjectDef>.GetNamed("IEE_PilgrimCamp");
+            PilgrimCamp camp =
+                (PilgrimCamp)WorldObjectMaker.MakeWorldObject(def);
+
+            camp.Data = EnclaveGenerator.Generate(TestPopulation);
+
+            if (requestedTier.HasValue)
+            {
+                EnclaveDevelopmentUtility.SetTier(
+                    camp.Data,
+                    requestedTier.Value,
+                    "developer camp visual-test harness"
+                );
+            }
+
+            camp.Tile = TileFinder.RandomSettlementTileFor(
+                Faction.OfPlayer,
+                mustBeAutoChoosable: false
+            );
+
+            Find.WorldObjects.Add(camp);
+            EnclaveWorldTestTools.RegisterCreatedWorldObject(camp);
+            Find.WorldSelector.Select(camp);
+
+            LongEventHandler.QueueLongEvent(
+                delegate
+                {
+                    Map map =
+                        EnclaveEncounterMapUtility.EnsureMapGenerated(camp);
+
+                    if (map == null)
+                    {
+                        Messages.Message(
+                            "The " +
+                            testLabel +
+                            " enclave map could not be generated.",
+                            MessageTypeDefOf.RejectInput
+                        );
+                        return;
+                    }
+
+                    CameraJumper.TryJump(map.Center, map);
+
+                    string tierLabel =
+                        EnclaveDevelopmentUtility.GetDisplayName(
+                            camp.Data
+                        );
+
+                    Messages.Message(
+                        "Created " +
+                        tierLabel +
+                        " visual test enclave " +
+                        camp.Data.Name +
+                        " with " +
+                        TestPopulation +
+                        " pilgrims.",
+                        MessageTypeDefOf.PositiveEvent
+                    );
+
+                    Log.Message(
+                        "[IEE] DEV " +
+                        testLabel +
+                        " enclave created through production generation: " +
+                        camp.Data.Name +
+                        " at tile " +
+                        camp.Tile +
+                        ", " +
+                        tierLabel +
+                        ", ideology " +
+                        EnclaveIdeologyUtility.GetTypeLabel(camp.Data) +
+                        ", population " +
+                        camp.Data.Population +
+                        ", layout " +
+                        camp.Data.DescribeLayoutAssignments() +
+                        "."
+                    );
+                },
+                "GeneratingMap",
+                doAsynchronously: false,
+                exceptionHandler: null
+            );
         }
 
         private static void AppendNearbyInfluence(

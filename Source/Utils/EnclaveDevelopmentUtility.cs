@@ -39,6 +39,30 @@ namespace IdeologyExpandedEnclaves
             }
         }
 
+        public static string GetDescription(EnclaveData data)
+        {
+            return GetDescription(GetTier(data));
+        }
+
+        public static string GetDescription(
+            EnclaveDevelopmentTier tier
+        )
+        {
+            switch (tier)
+            {
+                case EnclaveDevelopmentTier.TierI:
+                    return "A small, lightly established enclave.";
+                case EnclaveDevelopmentTier.TierII:
+                    return "A stable and established enclave.";
+                case EnclaveDevelopmentTier.TierIII:
+                    return "A developed regional enclave.";
+                case EnclaveDevelopmentTier.TierIV:
+                    return "A major and prosperous enclave.";
+                default:
+                    return "Development is not yet established.";
+            }
+        }
+
         public static bool SetTier(
             EnclaveData data,
             EnclaveDevelopmentTier tier,
