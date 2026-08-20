@@ -486,6 +486,7 @@ namespace IdeologyExpandedEnclaves
     public static class EnclaveDutyDefOf
     {
         public static DutyDef IEE_EnclaveLocalHostility;
+        public static DutyDef IEE_EnclaveInterventionCombat;
 
         static EnclaveDutyDefOf()
         {

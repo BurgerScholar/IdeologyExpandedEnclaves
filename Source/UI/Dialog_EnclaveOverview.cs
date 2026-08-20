@@ -188,6 +188,9 @@ namespace IdeologyExpandedEnclaves
                     camp.Data.Reputation +
                     " \u2014 " +
                     camp.Data.ReputationTierLabel,
+                "Intervention: " +
+                    EnclaveInterventionProfileUtility
+                        .GetDispositionLabel(camp.Data),
                 recruitmentAvailable
                     ? recruitmentDiscount > 0
                         ? "Recruitment: Available \u2014 " +

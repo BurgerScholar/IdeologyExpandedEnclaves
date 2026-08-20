@@ -129,6 +129,14 @@ namespace IdeologyExpandedEnclaves
             return data?.IdeologyProfile?.ActualIdeo;
         }
 
+        public static bool TryGetOrCreateActualIdeo(
+            EnclaveData data,
+            out Ideo ideo
+        )
+        {
+            return TryEnsureActualIdeo(data, out ideo);
+        }
+
         public static string GetActualIdeoLabel(EnclaveData data)
         {
             Ideo ideo = GetActualIdeo(data);

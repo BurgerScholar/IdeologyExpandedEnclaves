@@ -6,4 +6,10 @@
     <alwaysShowWeapon>true</alwaysShowWeapon>
     <socialModeMax>Off</socialModeMax>
   </DutyDef>
+  <DutyDef>
+    <defName>IEE_EnclaveInterventionCombat</defName>
+    <thinkNode Class="IdeologyExpandedEnclaves.JobGiver_EnclaveInterventionCombat" />
+    <alwaysShowWeapon>true</alwaysShowWeapon>
+    <socialModeMax>Off</socialModeMax>
+  </DutyDef>
 </Defs>

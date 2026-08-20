@@ -94,6 +94,13 @@ namespace IdeologyExpandedEnclaves
                         }
                     ),
                     new FloatMenuOption(
+                        "Intervention Testing",
+                        delegate
+                        {
+                            ShowInterventionTestingMenu();
+                        }
+                    ),
+                    new FloatMenuOption(
                         "Overview Test Presets",
                         delegate { ShowPresetMenu(camp); }
                     ),
@@ -818,6 +825,361 @@ namespace IdeologyExpandedEnclaves
             }
 
             ShowValueMenu(options);
+        }
+
+        private static void ShowInterventionTestingMenu()
+        {
+            if (!Prefs.DevMode)
+            {
+                return;
+            }
+
+            ShowValueMenu(
+                new List<FloatMenuOption>
+                {
+                    new FloatMenuOption(
+                        "Show Intervention Eligibility",
+                        ShowInterventionEligibility
+                    ),
+                    new FloatMenuOption(
+                        "Show Local Combat Hostility",
+                        ShowLocalCombatHostility
+                    ),
+                    new FloatMenuOption(
+                        "Evaluate Current Raid",
+                        EvaluateCurrentRaid
+                    ),
+                    new FloatMenuOption(
+                        "Force Friendly Intervention",
+                        delegate
+                        {
+                            ForceIntervention(
+                                EnclaveInterventionSide.Friendly
+                            );
+                        }
+                    ),
+                    new FloatMenuOption(
+                        "Force Hostile Intervention",
+                        delegate
+                        {
+                            ForceIntervention(
+                                EnclaveInterventionSide.Hostile
+                            );
+                        }
+                    )
+                }
+            );
+        }
+
+        private static void ShowInterventionEligibility()
+        {
+            Map map = Find.CurrentMap;
+
+            if (!EnclaveInterventionService.IsEligibleColonyMap(map))
+            {
+                Messages.Message(
+                    "Open a normal player colony map before inspecting " +
+                    "enclave intervention eligibility.",
+                    MessageTypeDefOf.RejectInput
+                );
+                return;
+            }
+
+            List<EnclaveInterventionProfile> profiles =
+                EnclaveInterventionService
+                    .GetNearbyProfilesForDebug(map);
+            EnclaveInterventionMapComponent component =
+                map.GetComponent<EnclaveInterventionMapComponent>();
+            EnclaveInterventionRecord record =
+                component?.GetLatestActiveRaidRecord();
+            StringBuilder report = new StringBuilder();
+
+            report.AppendLine("ENCLAVE INTERVENTION ELIGIBILITY");
+            report.AppendLine("Colony: " + map.Parent.LabelCap);
+            report.AppendLine(
+                "Active registered raid: " +
+                (record == null
+                    ? "None (party strengths use preview seed)"
+                    : record.Id + " — " + record.State)
+            );
+            report.AppendLine();
+
+            if (profiles.Count == 0)
+            {
+                report.AppendLine(
+                    "No Pilgrim Camps are within 30 tiles on this " +
+                    "world layer."
+                );
+            }
+            else
+            {
+                foreach (EnclaveInterventionProfile profile in profiles)
+                {
+                    report.AppendLine(
+                        profile.Camp.Data.Name +
+                        " — " +
+                        profile.DistanceInTiles.ToString("0.#") +
+                        " tiles (" +
+                        EnclaveProximityUtility
+                            .GetDistanceBandDisplayName(
+                                profile.DistanceBand
+                            ) +
+                        ")"
+                    );
+                    report.AppendLine(
+                        "  Development: " +
+                        EnclaveDevelopmentUtility.GetDisplayName(
+                            profile.DevelopmentTier
+                        )
+                    );
+                    report.AppendLine(
+                        "  Ideology: " +
+                        profile.IdeologyType +
+                        "; reputation: " +
+                        profile.ReputationTier
+                    );
+                    report.AppendLine(
+                        "  Side: " +
+                        profile.Side +
+                        "; chance: " +
+                        profile.ActivationChance.ToString("P0") +
+                        "; predicted party: " +
+                        profile.PartyStrength
+                    );
+                    report.AppendLine(
+                        "  Chance parts: base " +
+                        profile.BaseChance.ToString("P0") +
+                        ", distance " +
+                        FormatSignedPercent(profile.DistanceChance) +
+                        ", development " +
+                        FormatSignedPercent(
+                            profile.DevelopmentChance
+                        ) +
+                        ", reputation " +
+                        FormatSignedPercent(profile.ReputationChance) +
+                        ", ideology " +
+                        FormatSignedPercent(profile.IdeologyChance)
+                    );
+                }
+            }
+
+            string reportText = report.ToString().TrimEnd();
+
+            Log.Message(
+                "[IEE] DEV intervention eligibility\n" + reportText
+            );
+            Find.WindowStack.Add(new Dialog_MessageBox(reportText));
+        }
+
+        private static void ShowLocalCombatHostility()
+        {
+            Map map = Find.CurrentMap;
+            EnclaveInterventionMapComponent component =
+                map?.GetComponent<EnclaveInterventionMapComponent>();
+            EnclaveInterventionRecord record = null;
+
+            if (component?.Records != null)
+            {
+                foreach (
+                    EnclaveInterventionRecord candidate in
+                    component.Records
+                )
+                {
+                    if (
+                        candidate != null &&
+                        candidate.State ==
+                            EnclaveRaidInterventionState.Active &&
+                        (record == null || candidate.Id > record.Id)
+                    )
+                    {
+                        record = candidate;
+                    }
+                }
+            }
+
+            if (record == null)
+            {
+                Messages.Message(
+                    "No active enclave intervention exists on the " +
+                    "current map.",
+                    MessageTypeDefOf.RejectInput
+                );
+                return;
+            }
+
+            Pawn interventionPawn = FindPawnOnMap(
+                record.PartyPawns,
+                map
+            );
+            Pawn raidPawn = FindPawnOnMap(record.RaidPawns, map);
+            Pawn playerPawn = null;
+
+            foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
+            {
+                if (
+                    pawn != null &&
+                    !pawn.Destroyed &&
+                    !pawn.Dead &&
+                    pawn.Faction == Faction.OfPlayerSilentFail
+                )
+                {
+                    playerPawn = pawn;
+                    break;
+                }
+            }
+
+            StringBuilder report = new StringBuilder();
+
+            report.AppendLine("ENCLAVE LOCAL COMBAT HOSTILITY");
+            report.AppendLine(
+                "Record: " +
+                record.Id +
+                "; side: " +
+                record.Side +
+                "; state: " +
+                record.State
+            );
+            report.AppendLine(
+                "Intervention pawn: " +
+                DescribePawn(interventionPawn)
+            );
+            report.AppendLine("Player pawn: " + DescribePawn(playerPawn));
+            report.AppendLine("Raid pawn: " + DescribePawn(raidPawn));
+            report.AppendLine();
+            AppendHostilityResult(
+                report,
+                "Intervention -> Player",
+                interventionPawn,
+                playerPawn
+            );
+            AppendHostilityResult(
+                report,
+                "Player -> Intervention",
+                playerPawn,
+                interventionPawn
+            );
+            AppendHostilityResult(
+                report,
+                "Intervention -> Triggering raid",
+                interventionPawn,
+                raidPawn
+            );
+            AppendHostilityResult(
+                report,
+                "Triggering raid -> Intervention",
+                raidPawn,
+                interventionPawn
+            );
+
+            string reportText = report.ToString().TrimEnd();
+
+            Log.Message(
+                "[IEE] DEV local intervention hostility\n" + reportText
+            );
+            Find.WindowStack.Add(new Dialog_MessageBox(reportText));
+        }
+
+        private static Pawn FindPawnOnMap(
+            IReadOnlyList<Pawn> pawns,
+            Map map
+        )
+        {
+            if (pawns == null || map == null)
+            {
+                return null;
+            }
+
+            foreach (Pawn pawn in pawns)
+            {
+                if (
+                    pawn != null &&
+                    !pawn.Destroyed &&
+                    !pawn.Dead &&
+                    pawn.MapHeld == map
+                )
+                {
+                    return pawn;
+                }
+            }
+
+            return null;
+        }
+
+        private static string DescribePawn(Pawn pawn)
+        {
+            return pawn == null
+                ? "Unavailable"
+                : pawn.LabelShortCap + " (" + pawn.GetUniqueLoadID() + ")";
+        }
+
+        private static void AppendHostilityResult(
+            StringBuilder report,
+            string label,
+            Thing first,
+            Thing second
+        )
+        {
+            if (first == null || second == null)
+            {
+                report.AppendLine(label + ": unavailable");
+                return;
+            }
+
+            bool localHostility;
+            bool owned =
+                EnclaveInterventionService
+                    .TryGetLocalInterventionHostility(
+                        first,
+                        second,
+                        out localHostility
+                    );
+
+            report.AppendLine(
+                label +
+                ": " +
+                GenHostility.HostileTo(first, second) +
+                " (IEE owns: " +
+                owned +
+                (owned ? "; local result: " + localHostility : "") +
+                ")"
+            );
+        }
+
+        private static void EvaluateCurrentRaid()
+        {
+            string result;
+            bool succeeded =
+                EnclaveInterventionService.TryEvaluateCurrentRaid(
+                    Find.CurrentMap,
+                    out result
+                );
+
+            Messages.Message(
+                result ?? "The raid could not be evaluated.",
+                succeeded
+                    ? MessageTypeDefOf.PositiveEvent
+                    : MessageTypeDefOf.RejectInput
+            );
+        }
+
+        private static void ForceIntervention(
+            EnclaveInterventionSide side
+        )
+        {
+            string result;
+            bool succeeded =
+                EnclaveInterventionService.TryForceIntervention(
+                    Find.CurrentMap,
+                    side,
+                    out result
+                );
+
+            Messages.Message(
+                result ?? "The intervention could not be started.",
+                succeeded
+                    ? MessageTypeDefOf.PositiveEvent
+                    : MessageTypeDefOf.RejectInput
+            );
         }
 
         private static void SetDevelopmentTier(
@@ -1742,6 +2104,13 @@ namespace IdeologyExpandedEnclaves
             return score >= 0
                 ? "+" + score
                 : score.ToString();
+        }
+
+        private static string FormatSignedPercent(float value)
+        {
+            return value >= 0f
+                ? "+" + value.ToString("P0")
+                : value.ToString("P0");
         }
     }
 }
