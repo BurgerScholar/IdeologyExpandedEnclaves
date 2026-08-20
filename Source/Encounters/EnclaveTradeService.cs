@@ -100,6 +100,84 @@ namespace IdeologyExpandedEnclaves
                     trader;
         }
 
+        public static bool TryGetTradeHostForTrader(
+            Pawn trader,
+            out MapParent tradeHost,
+            out PilgrimCamp sourceCamp
+        )
+        {
+            tradeHost = trader?.Map?.Parent;
+            sourceCamp = null;
+
+            if (tradeHost is PilgrimCamp homeCamp)
+            {
+                if (
+                    homeCamp.PawnRoles?.GetPawn(
+                        EnclavePawnRole.Trader
+                    ) != trader
+                )
+                {
+                    tradeHost = null;
+                    return false;
+                }
+
+                sourceCamp = homeCamp;
+                return true;
+            }
+
+            EnclaveExpeditionSite expedition =
+                tradeHost as EnclaveExpeditionSite;
+
+            if (
+                expedition == null ||
+                expedition.Destroyed ||
+                expedition.ExpeditionTrader != trader ||
+                expedition.SourceCamp?.Data == null ||
+                expedition.SourceCamp.Destroyed ||
+                expedition.PendingExpiration
+            )
+            {
+                tradeHost = null;
+                return false;
+            }
+
+            sourceCamp = expedition.SourceCamp;
+            return true;
+        }
+
+        public static bool TradingIsAvailable(
+            MapParent tradeHost,
+            out string unavailableReason
+        )
+        {
+            EnclaveExpeditionSite expedition =
+                tradeHost as EnclaveExpeditionSite;
+
+            if (expedition != null)
+            {
+                if (
+                    expedition.PendingExpiration ||
+                    expedition.Destroyed
+                )
+                {
+                    unavailableReason =
+                        "Trading unavailable. This expedition site is " +
+                        "expiring.";
+                    return false;
+                }
+
+                return TradingIsAvailable(
+                    expedition.SourceCamp,
+                    out unavailableReason
+                );
+            }
+
+            return TradingIsAvailable(
+                tradeHost as PilgrimCamp,
+                out unavailableReason
+            );
+        }
+
         public static void SuppressVanillaTradeOption(Pawn trader)
         {
             if (trader?.mindState != null)
@@ -134,27 +212,68 @@ namespace IdeologyExpandedEnclaves
             );
         }
 
+        public static void NotifyTradeBlocked(
+            MapParent tradeHost,
+            Pawn trader = null
+        )
+        {
+            PilgrimCamp sourceCamp = GetSourceCamp(tradeHost);
+            string reason;
+
+            TradingIsAvailable(tradeHost, out reason);
+
+            Messages.Message(
+                reason ?? "Trading is currently unavailable.",
+                trader,
+                MessageTypeDefOf.RejectInput
+            );
+
+            Log.Message(
+                "[IEE] Blocked enclave trade at " +
+                (tradeHost?.Label ?? "an unavailable trade host") +
+                " for " +
+                (sourceCamp?.Data?.Name ?? "an enclave") +
+                "."
+            );
+        }
+
         public static bool TryOpenTrade(
-            PilgrimCamp camp,
+            MapParent tradeHost,
             Pawn trader,
             Pawn negotiator
         )
         {
+            PilgrimCamp camp;
+            MapParent resolvedHost;
             string unavailableReason;
 
-            if (!TradingIsAvailable(camp, out unavailableReason))
+            if (
+                !TryGetTradeHostForTrader(
+                    trader,
+                    out resolvedHost,
+                    out camp
+                ) ||
+                resolvedHost != tradeHost
+            )
             {
-                NotifyTradeBlocked(camp, trader);
+                Messages.Message(
+                    "The enclave Trader is no longer available.",
+                    MessageTypeDefOf.RejectInput
+                );
+                return false;
+            }
+
+            if (!TradingIsAvailable(tradeHost, out unavailableReason))
+            {
+                NotifyTradeBlocked(tradeHost, trader);
                 return false;
             }
 
             if (
                 trader == null ||
                 negotiator == null ||
-                camp?.PawnRoles?.GetPawn(EnclavePawnRole.Trader) !=
-                    trader ||
-                trader.Map != camp.Map ||
-                negotiator.Map != camp.Map ||
+                trader.Map != tradeHost.Map ||
+                negotiator.Map != tradeHost.Map ||
                 !TraderCanTradeNow(trader)
             )
             {
@@ -166,6 +285,7 @@ namespace IdeologyExpandedEnclaves
             }
 
             if (
+                tradeHost is PilgrimCamp &&
                 !EnclaveTraderStockService.EnsureStockForCurrentTier(
                     camp,
                     trader
@@ -183,7 +303,11 @@ namespace IdeologyExpandedEnclaves
 
             int bonusPercent = GetTradeBonusPercent(camp);
             ITrader reputationTrader =
-                new EnclaveReputationTrader(camp, trader);
+                new EnclaveReputationTrader(
+                    tradeHost,
+                    camp,
+                    trader
+                );
 
             if (bonusPercent > 0)
             {
@@ -210,7 +334,7 @@ namespace IdeologyExpandedEnclaves
             }
 
             EnclaveTradeSessionContext.Begin(
-                camp,
+                tradeHost,
                 trader,
                 reputationTrader
             );
@@ -309,21 +433,6 @@ namespace IdeologyExpandedEnclaves
                 return false;
             }
 
-            TraderKindDef traderKind =
-                DefDatabase<TraderKindDef>.GetNamedSilentFail(
-                    TraderKindDefName
-                );
-
-            if (traderKind == null)
-            {
-                Log.Error(
-                    "[IEE] Missing TraderKindDef " +
-                    TraderKindDefName +
-                    "."
-                );
-                return false;
-            }
-
             if (trader.trader == null)
             {
                 trader.mindState.wantsToTradeWithColony = true;
@@ -343,6 +452,34 @@ namespace IdeologyExpandedEnclaves
                 return false;
             }
 
+            TraderKindDef traderKind = trader.trader.traderKind;
+
+            if (traderKind == null)
+            {
+                string defName = TraderKindDefName;
+                EnclaveExpeditionSite expedition =
+                    trader.Map?.Parent as EnclaveExpeditionSite;
+
+                if (expedition != null)
+                {
+                    defName = EnclaveExpeditionUtility
+                        .GetTraderKindDefName(expedition.Purpose);
+                }
+
+                traderKind =
+                    DefDatabase<TraderKindDef>.GetNamedSilentFail(
+                        defName
+                    );
+
+                if (traderKind == null)
+                {
+                    Log.Error(
+                        "[IEE] Missing TraderKindDef " + defName + "."
+                    );
+                    return false;
+                }
+            }
+
             trader.trader.traderKind = traderKind;
             SuppressVanillaTradeOption(trader);
             return true;
@@ -350,6 +487,7 @@ namespace IdeologyExpandedEnclaves
 
         private class EnclaveReputationTrader : ITrader
         {
+            private readonly MapParent tradeHost;
             private readonly PilgrimCamp camp;
             private readonly Pawn trader;
 
@@ -372,16 +510,18 @@ namespace IdeologyExpandedEnclaves
                 {
                     string reason;
 
-                    return TradingIsAvailable(camp, out reason) &&
+                    return TradingIsAvailable(tradeHost, out reason) &&
                         TraderCanTradeNow(trader);
                 }
             }
 
             public EnclaveReputationTrader(
+                MapParent tradeHost,
                 PilgrimCamp camp,
                 Pawn trader
             )
             {
+                this.tradeHost = tradeHost;
                 this.camp = camp;
                 this.trader = trader;
             }
@@ -405,14 +545,17 @@ namespace IdeologyExpandedEnclaves
                     }
                 }
 
-                if (camp?.VisitingGroup == null)
+                EnclaveVisitingGroup visitingGroup =
+                    GetVisitingGroup(tradeHost);
+
+                if (visitingGroup == null)
                 {
                     yield break;
                 }
 
                 foreach (
                     Thing thing in
-                    camp.VisitingGroup.InventoryThings(camp)
+                    visitingGroup.InventoryThings(tradeHost)
                 )
                 {
                     if (thing != null && yielded.Add(thing))
@@ -460,7 +603,8 @@ namespace IdeologyExpandedEnclaves
                 );
 
                 List<Pawn> receivers =
-                    camp?.VisitingGroup?.ActiveMembersList(camp) ??
+                    GetVisitingGroup(tradeHost)
+                        ?.ActiveMembersList(tradeHost) ??
                     new List<Pawn>();
                 Pawn receiver =
                     CaravanInventoryUtility.FindPawnToMoveInventoryTo(
@@ -525,6 +669,49 @@ namespace IdeologyExpandedEnclaves
                 );
             }
         }
+
+        internal static EnclaveVisitingGroup GetVisitingGroup(
+            MapParent tradeHost
+        )
+        {
+            PilgrimCamp camp = tradeHost as PilgrimCamp;
+
+            if (camp != null)
+            {
+                return camp.VisitingGroup;
+            }
+
+            return (
+                tradeHost as EnclaveExpeditionSite
+            )?.VisitingGroup;
+        }
+
+        internal static PilgrimCamp GetSourceCamp(
+            MapParent tradeHost
+        )
+        {
+            PilgrimCamp camp = tradeHost as PilgrimCamp;
+
+            return camp ??
+                (tradeHost as EnclaveExpeditionSite)?.SourceCamp;
+        }
+
+        internal static bool IsDesignatedTrader(
+            MapParent tradeHost,
+            Pawn trader
+        )
+        {
+            PilgrimCamp source;
+            MapParent resolved;
+
+            return
+                TryGetTradeHostForTrader(
+                    trader,
+                    out resolved,
+                    out source
+                ) &&
+                resolved == tradeHost;
+        }
     }
 
     public class FloatMenuOptionProvider_EnclaveTrade
@@ -540,10 +727,12 @@ namespace IdeologyExpandedEnclaves
         )
         {
             PilgrimCamp camp;
+            MapParent tradeHost;
 
             if (
-                !EnclaveTradeService.TryGetEnclaveForTrader(
+                !EnclaveTradeService.TryGetTradeHostForTrader(
                     clickedPawn,
+                    out tradeHost,
                     out camp
                 )
             )
@@ -569,7 +758,7 @@ namespace IdeologyExpandedEnclaves
 
             if (
                 !EnclaveTradeService.TradingIsAvailable(
-                    camp,
+                    tradeHost,
                     out unavailableReason
                 )
             )
@@ -581,7 +770,7 @@ namespace IdeologyExpandedEnclaves
                     delegate
                     {
                         EnclaveTradeService.NotifyTradeBlocked(
-                            camp,
+                            tradeHost,
                             clickedPawn
                         );
                     }
@@ -664,9 +853,13 @@ namespace IdeologyExpandedEnclaves
         private void OpenTradeDialog()
         {
             Pawn trader = TargetPawnA;
-            PilgrimCamp camp = pawn?.Map?.Parent as PilgrimCamp;
+            MapParent tradeHost = pawn?.Map?.Parent;
 
-            EnclaveTradeService.TryOpenTrade(camp, trader, pawn);
+            EnclaveTradeService.TryOpenTrade(
+                tradeHost,
+                trader,
+                pawn
+            );
         }
     }
 }

@@ -109,6 +109,10 @@ namespace IdeologyExpandedEnclaves
                             );
                         EnclaveLocalHostilityService
                             .UpdateCampCombatState(loadedCamp);
+                        EnclaveExpeditionService.ReconcileCamp(
+                            loadedCamp,
+                            Find.TickManager?.TicksGame ?? 0
+                        );
                     }
                 );
             }

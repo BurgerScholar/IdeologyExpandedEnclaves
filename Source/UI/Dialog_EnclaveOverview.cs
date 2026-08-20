@@ -52,6 +52,7 @@ namespace IdeologyExpandedEnclaves
             List<string> playerRelationshipLines =
                 BuildPlayerRelationshipLines();
             List<string> localStatusLines = BuildLocalStatusLines();
+            List<string> expeditionLines = BuildExpeditionLines();
             List<string> needsLines = BuildNeedsLines();
             List<string> nearbyInfluenceLines =
                 BuildNearbyInfluenceLines(neighbors);
@@ -62,9 +63,10 @@ namespace IdeologyExpandedEnclaves
                 GetSectionHeight(viewWidth, leadershipLines) +
                 GetSectionHeight(viewWidth, playerRelationshipLines) +
                 GetSectionHeight(viewWidth, localStatusLines) +
+                GetSectionHeight(viewWidth, expeditionLines) +
                 GetSectionHeight(viewWidth, needsLines) +
                 GetSectionHeight(viewWidth, nearbyInfluenceLines) +
-                SectionSpacing * 5f;
+                SectionSpacing * 6f;
             Rect outRect = new Rect(
                 inRect.x,
                 inRect.y + 40f,
@@ -109,6 +111,12 @@ namespace IdeologyExpandedEnclaves
                 viewWidth,
                 "Local Status",
                 localStatusLines
+            );
+            DrawSection(
+                ref y,
+                viewWidth,
+                "Expedition",
+                expeditionLines
             );
             DrawSection(
                 ref y,
@@ -285,6 +293,57 @@ namespace IdeologyExpandedEnclaves
                     request.ReputationReward +
                     " reputation"
                 );
+            }
+
+            return lines;
+        }
+
+        private List<string> BuildExpeditionLines()
+        {
+            EnclaveExpeditionRecord record = camp.Data.Expedition;
+            EnclaveExpeditionSite site =
+                EnclaveExpeditionService.GetActiveSite(camp);
+
+            if (record?.IsActive != true)
+            {
+                return new List<string>
+                {
+                    "No active expedition"
+                };
+            }
+
+            List<string> lines = new List<string>
+            {
+                EnclaveExpeditionUtility.GetPurposeLabel(
+                    record.Purpose
+                ) +
+                " — " +
+                EnclaveExpeditionUtility.FormatRemainingTime(
+                    record.ExpirationTick
+                ) +
+                " remaining"
+            };
+
+            if (site != null)
+            {
+                float distance =
+                    EnclaveProximityUtility.GetDistanceInTiles(
+                        camp,
+                        site
+                    );
+
+                lines.Add(
+                    "Location: " +
+                    distance.ToString("0.#") +
+                    " tiles away" +
+                    (site.PendingExpiration
+                        ? " — pending safe departure"
+                        : string.Empty)
+                );
+            }
+            else
+            {
+                lines.Add("Site reference is being reconciled.");
             }
 
             return lines;

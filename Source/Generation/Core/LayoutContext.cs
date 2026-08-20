@@ -20,6 +20,23 @@ namespace IdeologyExpandedEnclaves
             int population,
             EnclaveData enclave
         )
+            : this(
+                map,
+                campCenter,
+                population,
+                enclave,
+                null
+            )
+        {
+        }
+
+        public LayoutContext(
+            Map map,
+            IntVec3 campCenter,
+            int population,
+            EnclaveData enclave,
+            EnclaveDevelopmentVisualProfile visualProfile
+        )
         {
             Map = map;
             CampCenter = campCenter;
@@ -44,7 +61,7 @@ namespace IdeologyExpandedEnclaves
             Random = new Random(
                 CreateStableSeed(enclave, includeLayout: true)
             );
-            VisualProfile =
+            VisualProfile = visualProfile ??
                 EnclaveDevelopmentVisualUtility.GetProfile(enclave);
             Anchors = new LayoutAnchors(campCenter, Enclave);
             Zones = new LayoutZones(Anchors, VisualProfile);

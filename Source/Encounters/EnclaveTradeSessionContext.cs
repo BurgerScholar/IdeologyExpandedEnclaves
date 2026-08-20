@@ -1,21 +1,22 @@
 using RimWorld;
+using RimWorld.Planet;
 using Verse;
 
 namespace IdeologyExpandedEnclaves
 {
     internal static class EnclaveTradeSessionContext
     {
-        private static PilgrimCamp activeCamp;
+        private static MapParent activeTradeHost;
         private static Pawn activeTraderPawn;
         private static ITrader activeSessionTrader;
 
         public static void Begin(
-            PilgrimCamp camp,
+            MapParent tradeHost,
             Pawn traderPawn,
             ITrader sessionTrader
         )
         {
-            activeCamp = camp;
+            activeTradeHost = tradeHost;
             activeTraderPawn = traderPawn;
             activeSessionTrader = sessionTrader;
         }
@@ -30,7 +31,7 @@ namespace IdeologyExpandedEnclaves
                 return;
             }
 
-            activeCamp = null;
+            activeTradeHost = null;
             activeTraderPawn = null;
             activeSessionTrader = null;
         }
@@ -39,17 +40,23 @@ namespace IdeologyExpandedEnclaves
         {
             if (
                 thing == null ||
-                activeCamp == null ||
+                activeTradeHost == null ||
                 activeTraderPawn == null ||
                 activeSessionTrader == null ||
                 !TradeSession.Active ||
                 !ReferenceEquals(TradeSession.trader, activeSessionTrader) ||
-                activeTraderPawn.Map?.Parent != activeCamp ||
-                activeCamp.PawnRoles?.GetPawn(EnclavePawnRole.Trader) !=
-                    activeTraderPawn ||
-                activeCamp.VisitingGroup == null ||
-                !activeCamp.VisitingGroup.ContainsInventoryThing(
-                    activeCamp,
+                activeTraderPawn.Map?.Parent != activeTradeHost ||
+                !EnclaveTradeService.IsDesignatedTrader(
+                    activeTradeHost,
+                    activeTraderPawn
+                ) ||
+                EnclaveTradeService.GetVisitingGroup(
+                    activeTradeHost
+                ) == null ||
+                !EnclaveTradeService.GetVisitingGroup(
+                    activeTradeHost
+                ).ContainsInventoryThing(
+                    activeTradeHost,
                     thing
                 ) ||
                 !TradeUtility.PlayerSellableNow(

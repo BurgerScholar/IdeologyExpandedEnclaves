@@ -13,4 +13,15 @@
     <texture>World/WorldObjects/DefaultSettlement</texture>
     <selectable>true</selectable>
   </WorldObjectDef>
+
+  <WorldObjectDef>
+    <defName>IEE_EnclaveExpeditionSite</defName>
+    <label>enclave expedition site</label>
+    <description>A temporary regional camp dispatched by a nearby enclave.</description>
+    <worldObjectClass>IdeologyExpandedEnclaves.EnclaveExpeditionSite</worldObjectClass>
+    <mapGenerator>Encounter</mapGenerator>
+    <overrideMapSize>(90,1,90)</overrideMapSize>
+    <texture>World/WorldObjects/DefaultSettlement</texture>
+    <selectable>true</selectable>
+  </WorldObjectDef>
 </Defs>

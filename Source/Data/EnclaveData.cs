@@ -44,12 +44,17 @@ namespace IdeologyExpandedEnclaves
         private EnclaveQuestRequest activeQuestRequest;
         private int nextQuestRequestId = 1;
         private int nextQuestRequestEligibleTick;
+        private EnclaveExpeditionRecord expedition;
+        private int nextExpeditionEligibleTick;
 
         public IReadOnlyList<EnclaveNeedRecord> Needs => needs;
         public EnclaveQuestRequest ActiveQuestRequest =>
             activeQuestRequest;
         public int NextQuestRequestEligibleTick =>
             nextQuestRequestEligibleTick;
+        public EnclaveExpeditionRecord Expedition => expedition;
+        public int NextExpeditionEligibleTick =>
+            nextExpeditionEligibleTick;
 
         public EnclaveReputationTier ReputationTier =>
             EnclaveReputation.GetTier(Reputation);
@@ -137,6 +142,15 @@ namespace IdeologyExpandedEnclaves
                 "nextQuestRequestEligibleTick",
                 0
             );
+            Scribe_Deep.Look(
+                ref expedition,
+                "expedition"
+            );
+            Scribe_Values.Look(
+                ref nextExpeditionEligibleTick,
+                "nextExpeditionEligibleTick",
+                0
+            );
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
@@ -179,6 +193,11 @@ namespace IdeologyExpandedEnclaves
                     0,
                     nextQuestRequestEligibleTick
                 );
+                nextExpeditionEligibleTick = Math.Max(
+                    0,
+                    nextExpeditionEligibleTick
+                );
+                expedition?.Normalize();
 
                 if (
                     !Enum.IsDefined(
@@ -376,6 +395,18 @@ namespace IdeologyExpandedEnclaves
         internal void SetNextQuestRequestEligibleTick(int tick)
         {
             nextQuestRequestEligibleTick = Math.Max(0, tick);
+        }
+
+        internal void SetExpedition(
+            EnclaveExpeditionRecord newExpedition
+        )
+        {
+            expedition = newExpedition;
+        }
+
+        internal void SetNextExpeditionEligibleTick(int tick)
+        {
+            nextExpeditionEligibleTick = Math.Max(0, tick);
         }
     }
 }

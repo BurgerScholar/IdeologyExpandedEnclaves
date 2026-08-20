@@ -48,30 +48,30 @@ namespace IdeologyExpandedEnclaves
             }
         }
 
-        public IEnumerable<Pawn> ActiveMembers(PilgrimCamp camp)
+        public IEnumerable<Pawn> ActiveMembers(MapParent mapParent)
         {
-            if (members == null || camp?.Map == null)
+            if (members == null || mapParent?.Map == null)
             {
                 yield break;
             }
 
             foreach (Pawn pawn in members)
             {
-                if (IsActiveMember(camp, pawn))
+                if (IsActiveMember(mapParent, pawn))
                 {
                     yield return pawn;
                 }
             }
         }
 
-        public List<Pawn> ActiveMembersList(PilgrimCamp camp)
+        public List<Pawn> ActiveMembersList(MapParent mapParent)
         {
-            return new List<Pawn>(ActiveMembers(camp));
+            return new List<Pawn>(ActiveMembers(mapParent));
         }
 
-        public bool HasActiveMembers(PilgrimCamp camp)
+        public bool HasActiveMembers(MapParent mapParent)
         {
-            foreach (Pawn pawn in ActiveMembers(camp))
+            foreach (Pawn pawn in ActiveMembers(mapParent))
             {
                 return true;
             }
@@ -79,9 +79,9 @@ namespace IdeologyExpandedEnclaves
             return false;
         }
 
-        public IEnumerable<Thing> InventoryThings(PilgrimCamp camp)
+        public IEnumerable<Thing> InventoryThings(MapParent mapParent)
         {
-            foreach (Pawn pawn in ActiveMembers(camp))
+            foreach (Pawn pawn in ActiveMembers(mapParent))
             {
                 if (pawn.inventory == null)
                 {
@@ -99,7 +99,7 @@ namespace IdeologyExpandedEnclaves
         }
 
         public bool ContainsInventoryThing(
-            PilgrimCamp camp,
+            MapParent mapParent,
             Thing thing
         )
         {
@@ -108,7 +108,7 @@ namespace IdeologyExpandedEnclaves
                 return false;
             }
 
-            foreach (Pawn pawn in ActiveMembers(camp))
+            foreach (Pawn pawn in ActiveMembers(mapParent))
             {
                 if (
                     pawn.inventory != null &&
@@ -123,7 +123,7 @@ namespace IdeologyExpandedEnclaves
         }
 
         public int CountInventoryThing(
-            PilgrimCamp camp,
+            MapParent mapParent,
             ThingDef thingDef
         )
         {
@@ -134,7 +134,7 @@ namespace IdeologyExpandedEnclaves
 
             long total = 0;
 
-            foreach (Pawn pawn in ActiveMembers(camp))
+            foreach (Pawn pawn in ActiveMembers(mapParent))
             {
                 if (pawn.inventory == null)
                 {
@@ -153,7 +153,7 @@ namespace IdeologyExpandedEnclaves
         }
 
         public bool TryConsumeInventoryThing(
-            PilgrimCamp camp,
+            MapParent mapParent,
             ThingDef thingDef,
             int count
         )
@@ -172,7 +172,7 @@ namespace IdeologyExpandedEnclaves
                 new List<InventoryPayment>();
             int remaining = count;
 
-            foreach (Pawn pawn in ActiveMembers(camp))
+            foreach (Pawn pawn in ActiveMembers(mapParent))
             {
                 if (pawn.inventory == null)
                 {
@@ -213,7 +213,7 @@ namespace IdeologyExpandedEnclaves
             foreach (InventoryPayment payment in paymentPlan)
             {
                 if (
-                    !IsActiveMember(camp, payment.Holder) ||
+                    !IsActiveMember(mapParent, payment.Holder) ||
                     payment.Holder.inventory == null ||
                     payment.Holder.inventory.Count(thingDef) <
                         payment.Count
@@ -270,7 +270,7 @@ namespace IdeologyExpandedEnclaves
         }
 
         private static bool IsActiveMember(
-            PilgrimCamp camp,
+            MapParent mapParent,
             Pawn pawn
         )
         {
@@ -280,7 +280,7 @@ namespace IdeologyExpandedEnclaves
                 !pawn.Dead &&
                 pawn.Faction == Faction.OfPlayer &&
                 pawn.Spawned &&
-                pawn.Map == camp.Map;
+                pawn.Map == mapParent.Map;
         }
     }
 }

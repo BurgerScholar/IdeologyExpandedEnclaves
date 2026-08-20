@@ -105,6 +105,13 @@ namespace IdeologyExpandedEnclaves
                         }
                     ),
                     new FloatMenuOption(
+                        "Expedition Testing",
+                        delegate
+                        {
+                            EnclaveExpeditionDevTools.ShowMenu(camp);
+                        }
+                    ),
+                    new FloatMenuOption(
                         "Overview Test Presets",
                         delegate { ShowPresetMenu(camp); }
                     ),
