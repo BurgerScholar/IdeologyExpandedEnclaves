@@ -19,14 +19,17 @@ namespace IdeologyExpandedEnclaves
             internal set;
         }
         public EnclaveIdeologyType IdeologyType { get; internal set; }
+        public EnclaveArchetype Archetype { get; internal set; }
         public float BaseChance { get; internal set; }
         public float DistanceChance { get; internal set; }
         public float DevelopmentChance { get; internal set; }
         public float ReputationChance { get; internal set; }
         public float IdeologyChance { get; internal set; }
+        public float ArchetypeChance { get; internal set; }
         public float ActivationChance { get; internal set; }
         public float ActivationRoll { get; internal set; }
         public int PartyStrength { get; internal set; }
+        public int ArchetypePartyStrengthBonus { get; internal set; }
         public string Flavor { get; internal set; }
 
         public bool RollSucceeded =>
@@ -87,6 +90,8 @@ namespace IdeologyExpandedEnclaves
                 data?.ReputationTier ?? EnclaveReputationTier.Neutral;
             EnclaveIdeologyType ideologyType =
                 EnclaveIdeologyUtility.GetIdeologyType(data);
+            EnclaveArchetypeProfile archetypeProfile =
+                EnclaveArchetypeUtility.GetProfile(data);
             float distanceChance = GetDistanceChance(distanceBand);
             float developmentChance =
                 GetDevelopmentChance(developmentTier);
@@ -94,14 +99,17 @@ namespace IdeologyExpandedEnclaves
                 GetReputationChance(reputationTier);
             float ideologyChance =
                 GetIdeologyChance(ideologyType, side);
+            float archetypeChance =
+                archetypeProfile.GetInterventionChance(side);
             float totalChance = side == EnclaveInterventionSide.None
                 ? 0f
                 : Clamp(
                     BaseActivationChance +
-                    distanceChance +
-                    developmentChance +
+                    ideologyChance +
+                    archetypeChance +
                     reputationChance +
-                    ideologyChance,
+                    developmentChance +
+                    distanceChance,
                     MinimumEligibleActivationChance,
                     MaximumActivationChance
                 );
@@ -115,6 +123,7 @@ namespace IdeologyExpandedEnclaves
                 DevelopmentTier = developmentTier,
                 ReputationTier = reputationTier,
                 IdeologyType = ideologyType,
+                Archetype = archetypeProfile.Archetype,
                 BaseChance = side == EnclaveInterventionSide.None
                     ? 0f
                     : BaseActivationChance,
@@ -130,6 +139,9 @@ namespace IdeologyExpandedEnclaves
                 IdeologyChance = side == EnclaveInterventionSide.None
                     ? 0f
                     : ideologyChance,
+                ArchetypeChance = side == EnclaveInterventionSide.None
+                    ? 0f
+                    : archetypeChance,
                 ActivationChance = totalChance,
                 ActivationRoll = GetStableUnitValue(
                     rollSeed,
@@ -144,6 +156,11 @@ namespace IdeologyExpandedEnclaves
                         distanceBand,
                         rollSeed
                     ),
+                ArchetypePartyStrengthBonus =
+                    side == EnclaveInterventionSide.None
+                        ? 0
+                        : archetypeProfile
+                            .InterventionPartyStrengthBonus,
                 Flavor = GetFlavor(ideologyType, side)
             };
         }
@@ -271,15 +288,6 @@ namespace IdeologyExpandedEnclaves
             int count = minimum +
                 (int)(variation % (uint)(maximum - minimum + 1));
 
-            if (distanceBand == EnclaveDistanceBand.Strong)
-            {
-                count++;
-            }
-            else if (distanceBand == EnclaveDistanceBand.Weak)
-            {
-                count--;
-            }
-
             EnclaveIdeologyType ideologyType =
                 EnclaveIdeologyUtility.GetIdeologyType(camp?.Data);
 
@@ -295,7 +303,28 @@ namespace IdeologyExpandedEnclaves
                 count--;
             }
 
-            return Math.Max(minimum, Math.Min(maximum, count));
+            EnclaveArchetypeProfile archetypeProfile =
+                EnclaveArchetypeUtility.GetProfile(camp?.Data);
+            int archetypeBonus =
+                archetypeProfile.InterventionPartyStrengthBonus;
+
+            count += archetypeBonus;
+
+            if (distanceBand == EnclaveDistanceBand.Strong)
+            {
+                count++;
+            }
+            else if (distanceBand == EnclaveDistanceBand.Weak)
+            {
+                count--;
+            }
+
+            int finalMaximum = Math.Min(
+                EnclaveArchetypeUtility.MaximumInterventionPartySize,
+                maximum + Math.Max(0, archetypeBonus)
+            );
+
+            return Math.Max(minimum, Math.Min(finalMaximum, count));
         }
 
         private static string GetFlavor(

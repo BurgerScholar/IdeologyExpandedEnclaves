@@ -43,6 +43,12 @@ namespace IdeologyExpandedEnclaves
                     Data = EnclaveGenerator.Generate();
                 }
 
+                EnclaveArchetypeUtility.EnsureArchetype(
+                    Data,
+                    ID,
+                    "existing-save migration"
+                );
+
                 if (PawnRoles == null)
                 {
                     PawnRoles = new EnclavePawnRoleAssignments();
@@ -238,6 +244,9 @@ namespace IdeologyExpandedEnclaves
                     "Type: " +
                     EnclaveIdeologyUtility.GetTypeLabel(Data) +
                     "\n" +
+                    "Archetype: " +
+                    EnclaveArchetypeUtility.GetDisplayName(Data) +
+                    "\n" +
                     "Development: " +
                     EnclaveDevelopmentUtility.GetDisplayName(Data) +
                     "\n" +
@@ -308,10 +317,15 @@ namespace IdeologyExpandedEnclaves
                     "interaction." +
                     (bonusPercent > 0
                         ? " " +
-                            Data.ReputationTierLabel +
-                            " reputation trade bonus: " +
+                            "Combined enclave trade benefit: " +
                             bonusPercent +
-                            "%."
+                            "% (" +
+                            EnclaveTradeService
+                                .GetReputationTradeBonusPercent(this) +
+                            "% reputation, " +
+                            EnclaveTradeService
+                                .GetArchetypeTradeBonusPercent(this) +
+                            "% archetype)."
                         : string.Empty),
                     trader,
                     MessageTypeDefOf.NeutralEvent

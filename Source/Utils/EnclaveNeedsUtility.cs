@@ -229,7 +229,10 @@ namespace IdeologyExpandedEnclaves
                 }
             }
 
-            shortages.Sort(CompareUrgency);
+            shortages.Sort(
+                (first, second) =>
+                    CompareUrgency(first, second, camp?.Data)
+            );
             return shortages;
         }
 
@@ -239,6 +242,18 @@ namespace IdeologyExpandedEnclaves
         {
             List<EnclaveNeedRecord> shortages = GetShortages(camp);
             return shortages.Count > 0 ? shortages[0] : null;
+        }
+
+        public static int GetSupplyRequestPriority(
+            EnclaveData data,
+            EnclaveNeedType needType
+        )
+        {
+            return data == null
+                ? 0
+                : EnclaveArchetypeUtility
+                    .GetProfile(data)
+                    .GetSupplyRequestPriority(needType);
         }
 
         public static bool HasCriticalShortage(PilgrimCamp camp)
@@ -636,6 +651,11 @@ namespace IdeologyExpandedEnclaves
                 GetDevelopmentConsumptionPercent(data);
             int ideologyPercent = GetIdeologyProfile(data)
                 .GetDemandPercent(needType);
+            int archetypePercent = data == null
+                ? BaseDemandPercent
+                : EnclaveArchetypeUtility
+                    .GetProfile(data)
+                    .GetNeedDemandPercent(needType);
 
             return Math.Max(
                 1,
@@ -643,8 +663,9 @@ namespace IdeologyExpandedEnclaves
                     (long)population *
                     profile.BaseDemandPerPawn *
                     developmentPercent *
-                    ideologyPercent,
-                    10000
+                    ideologyPercent *
+                    archetypePercent,
+                    1000000
                 )
             );
         }
@@ -672,7 +693,14 @@ namespace IdeologyExpandedEnclaves
                     GetDevelopmentResiliencePercent(data) +
                     GetRegionalSupplyAdjustment(regionalStatus) +
                     GetIdeologyProfile(data)
-                        .GeneralSupplyPercentBonus
+                        .GeneralSupplyPercentBonus +
+                    (data == null
+                        ? 0
+                        : EnclaveArchetypeUtility
+                            .GetProfile(data)
+                            .GetNeedSupplyCapacityBonusPercent(
+                                needType
+                            ))
                 )
             );
 
@@ -847,15 +875,26 @@ namespace IdeologyExpandedEnclaves
 
         private static int CompareUrgency(
             EnclaveNeedRecord first,
-            EnclaveNeedRecord second
+            EnclaveNeedRecord second,
+            EnclaveData data
         )
         {
             int severityComparison = second.Severity.CompareTo(
                 first.Severity
             );
 
-            return severityComparison != 0
-                ? severityComparison
+            if (severityComparison != 0)
+            {
+                return severityComparison;
+            }
+
+            int priorityComparison =
+                GetSupplyRequestPriority(data, second.Type).CompareTo(
+                    GetSupplyRequestPriority(data, first.Type)
+                );
+
+            return priorityComparison != 0
+                ? priorityComparison
                 : first.Type.CompareTo(second.Type);
         }
     }

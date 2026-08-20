@@ -83,6 +83,10 @@ namespace IdeologyExpandedEnclaves
                         delegate { ShowIdeologyTypeMenu(camp); }
                     ),
                     new FloatMenuOption(
+                        "Archetype",
+                        delegate { ShowArchetypeMenu(camp); }
+                    ),
+                    new FloatMenuOption(
                         "Development Tier",
                         delegate { ShowDevelopmentTierMenu(camp); }
                     ),
@@ -758,6 +762,251 @@ namespace IdeologyExpandedEnclaves
             );
         }
 
+        private static void ShowArchetypeMenu(PilgrimCamp camp)
+        {
+            ShowValueMenu(
+                new List<FloatMenuOption>
+                {
+                    CreateArchetypeOption(
+                        camp,
+                        EnclaveArchetype.Hearthbound
+                    ),
+                    CreateArchetypeOption(
+                        camp,
+                        EnclaveArchetype.TradeCompact
+                    ),
+                    CreateArchetypeOption(
+                        camp,
+                        EnclaveArchetype.WarriorCovenant
+                    ),
+                    new FloatMenuOption(
+                        "Show Archetype Effects",
+                        delegate { ShowArchetypeEffects(camp); }
+                    ),
+                    new FloatMenuOption(
+                        "Run Archetype Regression Test",
+                        delegate
+                        {
+                            EnclaveArchetypeRegressionTest.Run(camp);
+                        }
+                    )
+                }
+            );
+        }
+
+        private static FloatMenuOption CreateArchetypeOption(
+            PilgrimCamp camp,
+            EnclaveArchetype archetype
+        )
+        {
+            return new FloatMenuOption(
+                "Set " +
+                EnclaveArchetypeUtility
+                    .GetProfileFor(archetype)
+                    .DisplayName,
+                delegate
+                {
+                    EnclaveArchetype previous =
+                        EnclaveArchetypeUtility.GetArchetype(camp.Data);
+
+                    if (
+                        !EnclaveArchetypeUtility.SetArchetype(
+                            camp.Data,
+                            archetype,
+                            "developer archetype test control"
+                        )
+                    )
+                    {
+                        Messages.Message(
+                            "The enclave archetype could not be changed.",
+                            MessageTypeDefOf.RejectInput
+                        );
+                        return;
+                    }
+
+                    Messages.Message(
+                        "Enclave archetype changed: " +
+                        previous +
+                        " \u2192 " +
+                        EnclaveArchetypeUtility.GetDisplayName(camp.Data) +
+                        ". Existing map, Trader inventory, Needs, Supply " +
+                        "Request, and actual Ideo were not regenerated.",
+                        MessageTypeDefOf.NeutralEvent
+                    );
+                }
+            );
+        }
+
+        private static void ShowArchetypeEffects(PilgrimCamp camp)
+        {
+            if (!CanUse(camp))
+            {
+                return;
+            }
+
+            EnclaveArchetypeProfile profile =
+                EnclaveArchetypeUtility.GetProfile(camp.Data);
+            StringBuilder report = new StringBuilder();
+
+            report.AppendLine("ARCHETYPE EFFECTS - " + camp.Data.Name);
+            report.AppendLine("Archetype: " + profile.DisplayName);
+            report.AppendLine(
+                "Ideology: " +
+                EnclaveIdeologyUtility.GetTypeLabel(camp.Data)
+            );
+            report.AppendLine(
+                "Recruitment: base " +
+                EnclaveRecruitmentService.BaseRecruitmentCost +
+                "; reputation -" +
+                EnclaveRecruitmentService
+                    .GetReputationDiscountPercent(camp) +
+                "%; archetype " +
+                FormatSignedPercent(
+                    profile.RecruitmentPriceAdjustmentPercent
+                ) +
+                "; final " +
+                EnclaveRecruitmentService.GetEffectiveRecruitmentCost(
+                    camp,
+                    null
+                )
+            );
+            report.AppendLine(
+                "Trade: reputation +" +
+                EnclaveTradeService
+                    .GetReputationTradeBonusPercent(camp) +
+                "%; archetype +" +
+                profile.TradeFavorableBonusPercent +
+                "%; final +" +
+                EnclaveTradeService.GetTradeBonusPercent(camp) +
+                "%"
+            );
+            report.AppendLine("Needs:");
+
+            foreach (
+                EnclaveNeedType needType in
+                (EnclaveNeedType[])System.Enum.GetValues(
+                    typeof(EnclaveNeedType)
+                )
+            )
+            {
+                int demand =
+                    profile.GetNeedDemandBonusPercent(needType);
+                int supply =
+                    profile.GetNeedSupplyCapacityBonusPercent(needType);
+
+                if (demand != 0 || supply != 0)
+                {
+                    report.AppendLine(
+                        "  " +
+                        EnclaveNeedsUtility.GetNeedLabel(needType) +
+                        ": demand " +
+                        FormatSignedPercent(demand) +
+                        ", modeled supply " +
+                        FormatSignedPercent(supply)
+                    );
+                }
+            }
+
+            report.AppendLine(
+                "Supply Request priority: " +
+                DescribeSupplyRequestPriority(profile)
+            );
+            report.AppendLine(
+                "Supply Request cooldown: " +
+                profile.SupplyRequestCooldownTicks / 60000 +
+                " days"
+            );
+            report.AppendLine(
+                "Intervention: friendly " +
+                FormatSignedPercent(
+                    profile.FriendlyInterventionChance
+                ) +
+                ", hostile " +
+                FormatSignedPercent(
+                    profile.HostileInterventionChance
+                ) +
+                ", party " +
+                FormatSignedScore(
+                    profile.InterventionPartyStrengthBonus
+                )
+            );
+            report.AppendLine(
+                "Visuals: gathering seats " +
+                FormatSignedScore(profile.GatheringSeatBonus) +
+                ", storage stacks " +
+                FormatSignedScore(profile.StorageStackBonus) +
+                ", spacing " +
+                FormatSignedScore(profile.InternalSpacingAdjustment) +
+                profile.OrganizationSuffix
+            );
+            report.AppendLine(
+                "Initial persistent Trader stock: " +
+                DescribeArchetypeTraderStock(profile)
+            );
+
+            ShowReport(
+                "DEV archetype effects",
+                report.ToString().TrimEnd()
+            );
+        }
+
+        private static string DescribeSupplyRequestPriority(
+            EnclaveArchetypeProfile profile
+        )
+        {
+            List<EnclaveNeedType> priorities =
+                new List<EnclaveNeedType>
+                {
+                    EnclaveNeedType.Food,
+                    EnclaveNeedType.Medicine,
+                    EnclaveNeedType.BuildingMaterials,
+                    EnclaveNeedType.Textiles,
+                    EnclaveNeedType.Components
+                };
+
+            priorities.Sort(
+                (first, second) =>
+                    profile.GetSupplyRequestPriority(second).CompareTo(
+                        profile.GetSupplyRequestPriority(first)
+                    )
+            );
+            priorities.RemoveAll(
+                needType =>
+                    profile.GetSupplyRequestPriority(needType) <= 0
+            );
+
+            if (priorities.Count == 0)
+            {
+                return "standard severity order";
+            }
+
+            List<string> labels = new List<string>();
+
+            foreach (EnclaveNeedType needType in priorities)
+            {
+                labels.Add(EnclaveNeedsUtility.GetNeedLabel(needType));
+            }
+
+            return string.Join(" > ", labels);
+        }
+
+        private static string DescribeArchetypeTraderStock(
+            EnclaveArchetypeProfile profile
+        )
+        {
+            List<string> entries = new List<string>();
+
+            foreach (
+                EnclaveArchetypeTraderStockEntry entry in
+                profile.InitialTraderStock
+            )
+            {
+                entries.Add(entry.Count + "x " + entry.ThingDefName);
+            }
+
+            return string.Join(", ", entries);
+        }
+
         private static void ShowDevelopmentTierMenu(PilgrimCamp camp)
         {
             List<FloatMenuOption> options =
@@ -935,6 +1184,10 @@ namespace IdeologyExpandedEnclaves
                     report.AppendLine(
                         "  Ideology: " +
                         profile.IdeologyType +
+                        "; archetype: " +
+                        EnclaveArchetypeUtility
+                            .GetProfileFor(profile.Archetype)
+                            .DisplayName +
                         "; reputation: " +
                         profile.ReputationTier
                     );
@@ -958,7 +1211,13 @@ namespace IdeologyExpandedEnclaves
                         ", reputation " +
                         FormatSignedPercent(profile.ReputationChance) +
                         ", ideology " +
-                        FormatSignedPercent(profile.IdeologyChance)
+                        FormatSignedPercent(profile.IdeologyChance) +
+                        ", archetype " +
+                        FormatSignedPercent(profile.ArchetypeChance) +
+                        "; archetype party " +
+                        FormatSignedScore(
+                            profile.ArchetypePartyStrengthBonus
+                        )
                     );
                 }
             }
@@ -1268,6 +1527,42 @@ namespace IdeologyExpandedEnclaves
                                 MessageTypeDefOf.NeutralEvent
                             );
                         }
+                    ),
+                    new FloatMenuOption(
+                        "Revered Hearthbound",
+                        delegate
+                        {
+                            ApplyArchetypePreset(
+                                camp,
+                                90,
+                                EnclaveArchetype.Hearthbound,
+                                "Revered Hearthbound"
+                            );
+                        }
+                    ),
+                    new FloatMenuOption(
+                        "Revered Trade Compact",
+                        delegate
+                        {
+                            ApplyArchetypePreset(
+                                camp,
+                                90,
+                                EnclaveArchetype.TradeCompact,
+                                "Revered Trade Compact"
+                            );
+                        }
+                    ),
+                    new FloatMenuOption(
+                        "Hostile Warrior Covenant",
+                        delegate
+                        {
+                            ApplyArchetypePreset(
+                                camp,
+                                -50,
+                                EnclaveArchetype.WarriorCovenant,
+                                "Hostile Warrior Covenant"
+                            );
+                        }
                     )
                 }
             );
@@ -1307,6 +1602,44 @@ namespace IdeologyExpandedEnclaves
                 "), " +
                 EnclaveDevelopmentUtility.GetDisplayName(camp.Data) +
                 ". Ideology unchanged.",
+                MessageTypeDefOf.NeutralEvent
+            );
+        }
+
+        private static void ApplyArchetypePreset(
+            PilgrimCamp camp,
+            int reputation,
+            EnclaveArchetype archetype,
+            string label
+        )
+        {
+            EnclaveReputationTier previousTier =
+                camp.Data.ReputationTier;
+
+            camp.Data.SetReputation(
+                reputation,
+                "developer " + label + " test preset"
+            );
+            EnclaveLocalHostilityService.NotifyReputationChanged(
+                camp,
+                previousTier
+            );
+            EnclaveArchetypeUtility.SetArchetype(
+                camp.Data,
+                archetype,
+                "developer " + label + " test preset"
+            );
+
+            Messages.Message(
+                "Applied " +
+                label +
+                ": reputation " +
+                camp.Data.Reputation +
+                " (" +
+                camp.Data.ReputationTierLabel +
+                "), archetype " +
+                EnclaveArchetypeUtility.GetDisplayName(camp.Data) +
+                ". Ideology, map, stock, Needs, and quests unchanged.",
                 MessageTypeDefOf.NeutralEvent
             );
         }
@@ -2111,6 +2444,11 @@ namespace IdeologyExpandedEnclaves
             return value >= 0f
                 ? "+" + value.ToString("P0")
                 : value.ToString("P0");
+        }
+
+        private static string FormatSignedPercent(int value)
+        {
+            return (value >= 0 ? "+" : string.Empty) + value + "%";
         }
     }
 }

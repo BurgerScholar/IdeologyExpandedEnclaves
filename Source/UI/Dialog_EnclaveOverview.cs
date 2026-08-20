@@ -141,7 +141,12 @@ namespace IdeologyExpandedEnclaves
                 "Ideology: " +
                     EnclaveIdeologyUtility.GetActualIdeoLabel(camp.Data),
                 "Ideology type: " +
-                    EnclaveIdeologyUtility.GetTypeLabel(camp.Data)
+                    EnclaveIdeologyUtility.GetTypeLabel(camp.Data),
+                "Archetype: " +
+                    EnclaveArchetypeUtility.GetDisplayName(camp.Data),
+                EnclaveArchetypeUtility.GetDescription(camp.Data),
+                "Archetype effects: " +
+                    EnclaveArchetypeUtility.GetBenefitSummary(camp.Data)
             };
         }
 
@@ -168,7 +173,7 @@ namespace IdeologyExpandedEnclaves
                 );
             int recruitmentDiscount =
                 EnclaveRecruitmentService
-                    .GetReputationDiscountPercent(camp);
+                    .GetTotalRecruitmentDiscountPercent(camp);
             string tradeUnavailableReason;
             bool tradingAvailable =
                 EnclaveTradeService.TradingIsAvailable(
@@ -195,8 +200,12 @@ namespace IdeologyExpandedEnclaves
                     ? recruitmentDiscount > 0
                         ? "Recruitment: Available \u2014 " +
                             recruitmentDiscount +
-                            "% reputation discount"
-                        : "Recruitment: Available \u2014 normal cost"
+                            "% combined discount"
+                        : recruitmentDiscount < 0
+                            ? "Recruitment: Available \u2014 " +
+                                -recruitmentDiscount +
+                                "% archetype markup"
+                            : "Recruitment: Available \u2014 normal cost"
                     : recruitmentUnavailableReason ??
                         "Recruitment is unavailable.",
                 tradingAvailable
@@ -209,7 +218,8 @@ namespace IdeologyExpandedEnclaves
                         "Trading is unavailable.",
                 GetTraderStockBenefitText(
                     tradingAvailable,
-                    stockTier
+                    stockTier,
+                    EnclaveArchetypeUtility.GetDisplayName(camp.Data)
                 )
             };
         }
@@ -373,7 +383,8 @@ namespace IdeologyExpandedEnclaves
 
         private static string GetTraderStockBenefitText(
             bool tradingAvailable,
-            EnclaveTraderStockGrantTier stockTier
+            EnclaveTraderStockGrantTier stockTier,
+            string archetypeName
         )
         {
             if (!tradingAvailable)
@@ -383,10 +394,14 @@ namespace IdeologyExpandedEnclaves
             }
 
             return stockTier == EnclaveTraderStockGrantTier.None
-                ? "Trader stock: Base stock only"
+                ? "Trader stock: Persistent " +
+                    archetypeName +
+                    " stock focus"
                 : "Trader stock: " +
                     stockTier +
-                    " reputation additions available";
+                    " reputation additions plus " +
+                    archetypeName +
+                    " stock focus";
         }
 
         private static string GetNeighborTypeDisplayName(

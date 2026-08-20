@@ -9,6 +9,7 @@ namespace IdeologyExpandedEnclaves
     {
         public EnclaveDevelopmentTier Tier { get; internal set; }
         public EnclaveIdeologyType IdeologyType { get; internal set; }
+        public EnclaveArchetype Archetype { get; internal set; }
         public string DensityLabel { get; internal set; }
         public string OrganizationLabel { get; internal set; }
         public int AreaScalePercent { get; internal set; }
@@ -44,6 +45,8 @@ namespace IdeologyExpandedEnclaves
 
         public string DiagnosticSummary =>
             DensityLabel +
+            "; " +
+            Archetype +
             "; area scale " +
             AreaScalePercent +
             "%; spacing " +
@@ -207,8 +210,15 @@ namespace IdeologyExpandedEnclaves
 
             profile.IdeologyType =
                 EnclaveIdeologyUtility.GetIdeologyType(data);
+            EnclaveArchetypeProfile archetypeProfile =
+                EnclaveArchetypeUtility.GetProfile(data);
+            profile.Archetype = archetypeProfile.Archetype;
 
             ApplyIdeologyModifiers(profile);
+            ApplyArchetypeModifiers(
+                profile,
+                archetypeProfile
+            );
             return profile;
         }
 
@@ -281,7 +291,7 @@ namespace IdeologyExpandedEnclaves
                     SelectWeightedRule(
                         available,
                         selected,
-                        profile.IdeologyType,
+                        profile,
                         random
                     );
 
@@ -501,6 +511,24 @@ namespace IdeologyExpandedEnclaves
             }
         }
 
+        private static void ApplyArchetypeModifiers(
+            EnclaveDevelopmentVisualProfile profile,
+            EnclaveArchetypeProfile archetypeProfile
+        )
+        {
+            profile.GatheringSeatCount +=
+                archetypeProfile.GatheringSeatBonus;
+            profile.StorageStackCount +=
+                archetypeProfile.StorageStackBonus;
+            profile.InternalSpacing = Math.Max(
+                2,
+                profile.InternalSpacing +
+                    archetypeProfile.InternalSpacingAdjustment
+            );
+            profile.OrganizationLabel +=
+                archetypeProfile.OrganizationSuffix;
+        }
+
         private static void AddRule(
             List<StorageResourceRule> selected,
             ThingDef thingDef
@@ -519,7 +547,7 @@ namespace IdeologyExpandedEnclaves
         private static StorageResourceRule SelectWeightedRule(
             List<StorageResourceRule> available,
             List<StorageResourceRule> selected,
-            EnclaveIdeologyType ideologyType,
+            EnclaveDevelopmentVisualProfile profile,
             Random random
         )
         {
@@ -529,7 +557,7 @@ namespace IdeologyExpandedEnclaves
             {
                 if (!selected.Contains(rule))
                 {
-                    totalWeight += GetWeight(rule, ideologyType);
+                    totalWeight += GetWeight(rule, profile);
                 }
             }
 
@@ -547,7 +575,7 @@ namespace IdeologyExpandedEnclaves
                     continue;
                 }
 
-                roll -= GetWeight(rule, ideologyType);
+                roll -= GetWeight(rule, profile);
 
                 if (roll < 0)
                 {
@@ -560,10 +588,11 @@ namespace IdeologyExpandedEnclaves
 
         private static int GetWeight(
             StorageResourceRule rule,
-            EnclaveIdeologyType ideologyType
+            EnclaveDevelopmentVisualProfile profile
         )
         {
             int weight = rule.Weight;
+            EnclaveIdeologyType ideologyType = profile.IdeologyType;
 
             if (ideologyType == EnclaveIdeologyType.Nature)
             {
@@ -610,6 +639,10 @@ namespace IdeologyExpandedEnclaves
                 weight += 50;
             }
 
+            weight += EnclaveArchetypeUtility
+                .GetProfileFor(profile.Archetype)
+                .GetVisualStorageWeightBonus(rule.ThingDef.defName);
+
             return Math.Max(1, weight);
         }
 
@@ -650,6 +683,12 @@ namespace IdeologyExpandedEnclaves
             {
                 percent += 25;
             }
+
+            percent += EnclaveArchetypeUtility
+                .GetProfileFor(profile.Archetype)
+                .GetVisualStorageQuantityBonusPercent(
+                    rule.ThingDef.defName
+                );
 
             if (profile.Tier != EnclaveDevelopmentTier.TierII)
             {

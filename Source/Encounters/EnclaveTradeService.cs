@@ -11,7 +11,9 @@ namespace IdeologyExpandedEnclaves
         private const string TraderKindDefName =
             "IEE_PilgrimCampTrader";
 
-        public static int GetTradeBonusPercent(PilgrimCamp camp)
+        public static int GetReputationTradeBonusPercent(
+            PilgrimCamp camp
+        )
         {
             if (camp?.Data == null)
             {
@@ -29,6 +31,27 @@ namespace IdeologyExpandedEnclaves
                 default:
                     return 0;
             }
+        }
+
+        public static int GetArchetypeTradeBonusPercent(
+            PilgrimCamp camp
+        )
+        {
+            return camp?.Data == null
+                ? 0
+                : EnclaveArchetypeUtility
+                    .GetProfile(camp.Data)
+                    .TradeFavorableBonusPercent;
+        }
+
+        public static int GetTradeBonusPercent(PilgrimCamp camp)
+        {
+            return System.Math.Min(
+                EnclaveArchetypeUtility
+                    .MaximumTradeFavorableBonusPercent,
+                GetReputationTradeBonusPercent(camp) +
+                GetArchetypeTradeBonusPercent(camp)
+            );
         }
 
         public static bool TradingIsAvailable(
@@ -167,10 +190,17 @@ namespace IdeologyExpandedEnclaves
                 Log.Message(
                     "[IEE] Applied " +
                     bonusPercent +
-                    "% reputation trade modifier for " +
+                    "% enclave trade modifier for " +
                     (camp.Data?.Name ?? "an enclave") +
-                    " at tier " +
+                    " at reputation tier " +
                     camp.Data.ReputationTierLabel +
+                    " and archetype " +
+                    EnclaveArchetypeUtility.GetDisplayName(camp.Data) +
+                    " (reputation " +
+                    GetReputationTradeBonusPercent(camp) +
+                    "%, archetype " +
+                    GetArchetypeTradeBonusPercent(camp) +
+                    "%)" +
                     ". Trader: " +
                     trader.LabelShort +
                     " (" +
@@ -567,8 +597,7 @@ namespace IdeologyExpandedEnclaves
             {
                 label +=
                     " (" +
-                    camp.Data.ReputationTierLabel +
-                    " bonus: " +
+                    "enclave benefit: " +
                     bonusPercent +
                     "%)";
             }

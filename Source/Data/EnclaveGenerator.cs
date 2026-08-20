@@ -43,6 +43,11 @@ namespace IdeologyExpandedEnclaves
                 random,
                 "new enclave generation"
             );
+            EnclaveArchetypeUtility.EnsureArchetype(
+                data,
+                -1,
+                "new enclave generation"
+            );
             EnclaveDevelopmentUtility.EnsureTier(
                 data,
                 "new enclave generation"

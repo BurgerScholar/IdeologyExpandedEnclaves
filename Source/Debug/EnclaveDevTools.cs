@@ -177,6 +177,16 @@ namespace IdeologyExpandedEnclaves
             );
             AppendIdeologyAlignment(report, camp);
             report.AppendLine();
+            report.AppendLine("ARCHETYPE");
+            report.AppendLine(
+                "Archetype: " +
+                EnclaveArchetypeUtility.GetDisplayName(camp.Data)
+            );
+            report.AppendLine(
+                "Effects: " +
+                EnclaveArchetypeUtility.GetBenefitSummary(camp.Data)
+            );
+            report.AppendLine();
             report.AppendLine("DEVELOPMENT");
             report.AppendLine(
                 "Development: " +
@@ -215,7 +225,9 @@ namespace IdeologyExpandedEnclaves
                 "Organization: " +
                 visualProfile.OrganizationLabel +
                 "; ideology flavor " +
-                visualProfile.IdeologyType
+                visualProfile.IdeologyType +
+                "; archetype flavor " +
+                visualProfile.Archetype
             );
             report.AppendLine();
             report.AppendLine("PLAYER RELATIONSHIP");

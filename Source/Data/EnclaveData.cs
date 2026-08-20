@@ -28,6 +28,7 @@ namespace IdeologyExpandedEnclaves
         // Retained for compatibility with saves created before profiles.
         public string Ideology;
         public EnclaveIdeologyProfile IdeologyProfile;
+        public EnclaveArchetype Archetype;
         public int Population;
         public EnclaveDevelopmentTier DevelopmentTier;
         public int DevelopmentTierInitialPopulation = -1;
@@ -69,6 +70,11 @@ namespace IdeologyExpandedEnclaves
             Scribe_Deep.Look(
                 ref IdeologyProfile,
                 "ideologyProfile"
+            );
+            Scribe_Values.Look(
+                ref Archetype,
+                "archetype",
+                EnclaveArchetype.Unassigned
             );
             Scribe_Values.Look(ref Population, "population", 0);
             Scribe_Values.Look(
@@ -142,6 +148,20 @@ namespace IdeologyExpandedEnclaves
                     this,
                     reason: "existing-save migration"
                 );
+
+                if (
+                    Archetype != EnclaveArchetype.Unassigned &&
+                    !Enum.IsDefined(typeof(EnclaveArchetype), Archetype)
+                )
+                {
+                    Log.Warning(
+                        "[IEE] Reset invalid loaded archetype for " +
+                        (Name ?? "an enclave") +
+                        "."
+                    );
+                    Archetype = EnclaveArchetype.Unassigned;
+                }
+
                 EnclaveDevelopmentUtility.EnsureTier(
                     this,
                     reason: "existing-save migration"

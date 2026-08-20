@@ -232,7 +232,7 @@ namespace IdeologyExpandedEnclaves
                 return;
             }
 
-            if (!InitializeTrader(trader, map))
+            if (!InitializeTrader(camp, trader, map))
             {
                 Log.Error(
                     "[IEE] Trader role assignment failed because " +
@@ -259,6 +259,7 @@ namespace IdeologyExpandedEnclaves
         }
 
         private static bool InitializeTrader(
+            PilgrimCamp camp,
             Pawn trader,
             Map map
         )
@@ -395,6 +396,17 @@ namespace IdeologyExpandedEnclaves
                 itemCount +
                 " total items)."
             );
+
+            if (
+                !EnclaveTraderStockService
+                    .TryAddInitialArchetypeStock(camp, trader)
+            )
+            {
+                Log.Warning(
+                    "[IEE] The Trader retained valid base stock, but " +
+                    "its archetype stock bias could not be applied."
+                );
+            }
 
             EnclaveTradeService.SuppressVanillaTradeOption(trader);
 

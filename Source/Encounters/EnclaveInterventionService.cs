@@ -929,6 +929,8 @@ namespace IdeologyExpandedEnclaves
                 profile.ReputationTier +
                 ", ideology " +
                 profile.IdeologyType +
+                ", archetype " +
+                profile.Archetype +
                 ", chance " +
                 profile.ActivationChance.ToString("P0") +
                 ", roll " +

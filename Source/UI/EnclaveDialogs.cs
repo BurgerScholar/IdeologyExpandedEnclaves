@@ -380,9 +380,8 @@ namespace IdeologyExpandedEnclaves
                     camp,
                     out recruitmentUnavailableReason
                 );
-            int discountPercent =
-                EnclaveRecruitmentService
-                    .GetReputationDiscountPercent(camp);
+            string pricingSummary =
+                GetRecruitmentPricingSummary();
 
             Widgets.Label(
                 new Rect(inRect.x, inRect.y + 34f, inRect.width, 24f),
@@ -401,12 +400,7 @@ namespace IdeologyExpandedEnclaves
             Widgets.Label(
                 new Rect(inRect.x, inRect.y + 80f, inRect.width, 42f),
                 recruitmentAvailable
-                    ? discountPercent > 0
-                        ? camp.Data.ReputationTierLabel +
-                            " reputation discount: " +
-                            discountPercent +
-                            "%"
-                        : "Recruitment available at the standard cost."
+                    ? pricingSummary
                     : recruitmentUnavailableReason
             );
             Widgets.Label(
@@ -582,9 +576,9 @@ namespace IdeologyExpandedEnclaves
                     camp,
                     candidate
                 );
-            int discountPercent =
+            int totalDiscountPercent =
                 EnclaveRecruitmentService
-                    .GetReputationDiscountPercent(camp);
+                    .GetTotalRecruitmentDiscountPercent(camp);
             string unavailableReason;
             bool recruitmentAvailable =
                 EnclaveRecruitmentService.RecruitmentIsAvailable(
@@ -612,12 +606,15 @@ namespace IdeologyExpandedEnclaves
                     " silver" +
                     (!canAfford
                         ? "\nInsufficient silver"
-                        : discountPercent > 0
+                        : totalDiscountPercent > 0
                         ? "\n" +
-                            camp.Data.ReputationTierLabel +
-                            " discount: " +
-                            discountPercent +
+                            "Final discount: " +
+                            totalDiscountPercent +
                             "%"
+                        : totalDiscountPercent < 0
+                            ? "\nArchetype markup: " +
+                                -totalDiscountPercent +
+                                "%"
                         : string.Empty);
             }
 
@@ -640,12 +637,15 @@ namespace IdeologyExpandedEnclaves
                         ? "Recruit this candidate for " +
                         cost +
                         " silver from the visiting group's inventories." +
-                        (discountPercent > 0
+                        (totalDiscountPercent > 0
                             ? " " +
-                                camp.Data.ReputationTierLabel +
-                                " reputation discount: " +
-                                discountPercent +
+                                "Combined discount: " +
+                                totalDiscountPercent +
                                 "%."
+                            : totalDiscountPercent < 0
+                                ? " Archetype markup: " +
+                                    -totalDiscountPercent +
+                                    "%."
                             : string.Empty)
                         : "Insufficient silver: " +
                         availableSilver +
@@ -653,6 +653,42 @@ namespace IdeologyExpandedEnclaves
                         cost +
                         " available in the visiting group's inventories."
             );
+        }
+
+        private string GetRecruitmentPricingSummary()
+        {
+            int reputationDiscount =
+                EnclaveRecruitmentService
+                    .GetReputationDiscountPercent(camp);
+            int archetypeAdjustment =
+                EnclaveRecruitmentService
+                    .GetArchetypePriceAdjustmentPercent(camp);
+            int totalDiscount =
+                EnclaveRecruitmentService
+                    .GetTotalRecruitmentDiscountPercent(camp);
+
+            return
+                "Pricing: " +
+                (camp?.Data?.ReputationTierLabel ?? "Unknown") +
+                " reputation -" +
+                reputationDiscount +
+                "%; " +
+                (camp?.Data == null
+                    ? "archetype"
+                    : EnclaveArchetypeUtility.GetDisplayName(camp.Data)) +
+                " " +
+                FormatSignedPercent(archetypeAdjustment) +
+                "; final " +
+                (totalDiscount > 0
+                    ? totalDiscount + "% discount."
+                    : totalDiscount < 0
+                        ? -totalDiscount + "% markup."
+                        : "standard cost.");
+        }
+
+        private static string FormatSignedPercent(int value)
+        {
+            return (value >= 0 ? "+" : string.Empty) + value + "%";
         }
 
         private void ConfirmRecruitment(Pawn candidate, int cost)

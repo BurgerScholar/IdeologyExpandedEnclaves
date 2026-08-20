@@ -43,16 +43,53 @@ namespace IdeologyExpandedEnclaves
             }
         }
 
+        public static int GetArchetypePriceAdjustmentPercent(
+            PilgrimCamp camp
+        )
+        {
+            return camp?.Data == null
+                ? 0
+                : EnclaveArchetypeUtility
+                    .GetProfile(camp.Data)
+                    .RecruitmentPriceAdjustmentPercent;
+        }
+
+        public static int GetFinalRecruitmentPricePercent(
+            PilgrimCamp camp
+        )
+        {
+            int percent =
+                100 -
+                GetReputationDiscountPercent(camp) +
+                GetArchetypePriceAdjustmentPercent(camp);
+
+            return Math.Max(
+                EnclaveArchetypeUtility.MinimumRecruitmentPricePercent,
+                Math.Min(
+                    EnclaveArchetypeUtility
+                        .MaximumRecruitmentPricePercent,
+                    percent
+                )
+            );
+        }
+
+        public static int GetTotalRecruitmentDiscountPercent(
+            PilgrimCamp camp
+        )
+        {
+            return 100 - GetFinalRecruitmentPricePercent(camp);
+        }
+
         public static int GetEffectiveRecruitmentCost(
             PilgrimCamp camp,
             Pawn candidate
         )
         {
             int baseCost = Math.Max(0, GetRecruitmentCost(candidate));
-            int discountPercent =
-                GetReputationDiscountPercent(camp);
+            int finalPricePercent =
+                GetFinalRecruitmentPricePercent(camp);
             long discountedCost =
-                (long)baseCost * (100 - discountPercent);
+                (long)baseCost * finalPricePercent;
 
             return (int)((discountedCost + 99) / 100);
         }
@@ -137,6 +174,10 @@ namespace IdeologyExpandedEnclaves
             EnclaveReputationTier reputationTier =
                 camp.Data.ReputationTier;
             int baseCost = GetRecruitmentCost(candidate);
+            int reputationDiscount =
+                GetReputationDiscountPercent(camp);
+            int archetypeAdjustment =
+                GetArchetypePriceAdjustmentPercent(camp);
             int cost = GetEffectiveRecruitmentCost(camp, candidate);
 
             if (confirmedCost != cost)
@@ -198,9 +239,15 @@ namespace IdeologyExpandedEnclaves
                 (camp.Data?.Name ?? "an enclave") +
                 ". Reputation tier: " +
                 reputationTier +
+                ". Archetype: " +
+                EnclaveArchetypeUtility.GetDisplayName(camp.Data) +
                 ". Base price: " +
                 baseCost +
-                " silver. Final price: " +
+                " silver. Reputation discount: " +
+                reputationDiscount +
+                "%. Archetype adjustment: " +
+                FormatSignedPercent(archetypeAdjustment) +
+                ". Final price: " +
                 cost +
                 " silver. Remaining enclave population: " +
                 camp.Data.Population +
@@ -208,6 +255,11 @@ namespace IdeologyExpandedEnclaves
             );
 
             return true;
+        }
+
+        private static string FormatSignedPercent(int value)
+        {
+            return (value >= 0 ? "+" : string.Empty) + value + "%";
         }
 
         private static bool ValidateRecruitment(

@@ -42,6 +42,110 @@ namespace IdeologyExpandedEnclaves
             new StockEntry("Uranium", 15)
         };
 
+        public static bool TryAddInitialArchetypeStock(
+            PilgrimCamp camp,
+            Pawn trader
+        )
+        {
+            if (
+                camp?.Data == null ||
+                trader?.inventory?.innerContainer == null
+            )
+            {
+                return false;
+            }
+
+            EnclaveArchetypeProfile profile =
+                EnclaveArchetypeUtility.GetProfile(camp.Data);
+            List<Thing> prepared = new List<Thing>();
+
+            try
+            {
+                foreach (
+                    EnclaveArchetypeTraderStockEntry entry in
+                    profile.InitialTraderStock
+                )
+                {
+                    ThingDef thingDef =
+                        DefDatabase<ThingDef>.GetNamedSilentFail(
+                            entry.ThingDefName
+                        );
+                    ThingDef stuffDef = entry.StuffDefName.NullOrEmpty()
+                        ? null
+                        : DefDatabase<ThingDef>.GetNamedSilentFail(
+                            entry.StuffDefName
+                        );
+
+                    if (
+                        thingDef == null ||
+                        !entry.StuffDefName.NullOrEmpty() &&
+                            stuffDef == null
+                    )
+                    {
+                        Log.Error(
+                            "[IEE] Cannot initialize " +
+                            profile.DisplayName +
+                            " Trader stock because a configured ThingDef " +
+                            "or stuff def is missing."
+                        );
+                        DestroyPrepared(prepared);
+                        return false;
+                    }
+
+                    Thing thing = ThingMaker.MakeThing(
+                        thingDef,
+                        stuffDef
+                    );
+                    thing.stackCount = System.Math.Min(
+                        entry.Count,
+                        thingDef.stackLimit
+                    );
+                    prepared.Add(thing);
+                }
+            }
+            catch (System.Exception exception)
+            {
+                DestroyPrepared(prepared);
+                Log.Error(
+                    "[IEE] Failed while preparing " +
+                    profile.DisplayName +
+                    " Trader stock: " +
+                    exception
+                );
+                return false;
+            }
+
+            int addedStacks = 0;
+            int addedItems = 0;
+
+            foreach (Thing thing in prepared)
+            {
+                if (trader.inventory.innerContainer.TryAdd(thing))
+                {
+                    addedStacks++;
+                    addedItems += thing.stackCount;
+                }
+                else if (!thing.Destroyed)
+                {
+                    thing.Destroy(DestroyMode.Vanish);
+                }
+            }
+
+            Log.Message(
+                "[IEE] Applied one-time " +
+                profile.DisplayName +
+                " stock bias to " +
+                trader.LabelShort +
+                ": " +
+                addedStacks +
+                " stack(s), " +
+                addedItems +
+                " item(s). Trader inventory remains authoritative."
+            );
+
+            return addedStacks == prepared.Count;
+        }
+
         public static bool EnsureStockForCurrentTier(
             PilgrimCamp camp,
             Pawn trader
@@ -227,6 +331,17 @@ namespace IdeologyExpandedEnclaves
                     return ReveredStock;
                 default:
                     return new StockEntry[0];
+            }
+        }
+
+        private static void DestroyPrepared(List<Thing> things)
+        {
+            foreach (Thing thing in things)
+            {
+                if (thing != null && !thing.Destroyed)
+                {
+                    thing.Destroy(DestroyMode.Vanish);
+                }
             }
         }
     }

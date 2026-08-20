@@ -20,6 +20,17 @@ namespace IdeologyExpandedEnclaves
         private const string SupplyRequestQuestDefName =
             "IEE_EnclaveSupplyRequest";
 
+        public static int GetSupplyRequestCooldownTicks(
+            EnclaveData data
+        )
+        {
+            return data == null
+                ? SupplyRequestCooldownTicks
+                : EnclaveArchetypeUtility
+                    .GetProfile(data)
+                    .SupplyRequestCooldownTicks;
+        }
+
         public static bool TryGenerateSupplyRequest(
             PilgrimCamp camp,
             out EnclaveQuestRequest generatedRequest
@@ -118,7 +129,7 @@ namespace IdeologyExpandedEnclaves
             camp.Data.SetNextQuestRequestEligibleTick(
                 AddTicksClamped(
                     currentTick,
-                    SupplyRequestCooldownTicks
+                    GetSupplyRequestCooldownTicks(camp.Data)
                 )
             );
             QuestUtility.SendLetterQuestAvailable(
@@ -358,7 +369,7 @@ namespace IdeologyExpandedEnclaves
                     camp.Data.NextQuestRequestEligibleTick,
                     AddTicksClamped(
                         Find.TickManager?.TicksGame ?? 0,
-                        SupplyRequestCooldownTicks
+                        GetSupplyRequestCooldownTicks(camp.Data)
                     )
                 )
             );
@@ -441,7 +452,7 @@ namespace IdeologyExpandedEnclaves
                     camp.Data.NextQuestRequestEligibleTick,
                     AddTicksClamped(
                         Find.TickManager?.TicksGame ?? 0,
-                        SupplyRequestCooldownTicks
+                        GetSupplyRequestCooldownTicks(camp.Data)
                     )
                 )
             );
@@ -504,7 +515,7 @@ namespace IdeologyExpandedEnclaves
                         camp.Data.NextQuestRequestEligibleTick,
                         AddTicksClamped(
                             Find.TickManager?.TicksGame ?? 0,
-                            SupplyRequestCooldownTicks
+                            GetSupplyRequestCooldownTicks(camp.Data)
                         )
                     )
                 );

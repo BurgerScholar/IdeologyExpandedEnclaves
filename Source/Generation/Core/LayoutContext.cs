@@ -59,6 +59,8 @@ namespace IdeologyExpandedEnclaves
                 ", " +
                 VisualProfile.IdeologyType +
                 ", " +
+                EnclaveArchetypeUtility.GetDisplayName(Enclave) +
+                ", " +
                 VisualProfile.DiagnosticSummary +
                 "."
             );
@@ -80,6 +82,8 @@ namespace IdeologyExpandedEnclaves
                     (int)EnclaveDevelopmentUtility.GetTier(enclave);
                 seed = seed * 31 +
                     (int)EnclaveIdeologyUtility.GetIdeologyType(enclave);
+                seed = seed * 31 +
+                    (int)EnclaveArchetypeUtility.GetArchetype(enclave);
 
                 if (includeLayout && enclave != null)
                 {
