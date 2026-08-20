@@ -137,7 +137,13 @@ namespace IdeologyExpandedEnclaves
 
             Pawn trader = members[0];
 
-            if (!InitializeTrader(site, trader, map))
+            if (
+                !EnclaveTemporaryTraderUtility.Initialize(
+                    trader,
+                    map,
+                    site.Purpose
+                )
+            )
             {
                 Log.Error(
                     "[IEE] The expedition party spawned, but its " +
@@ -233,61 +239,6 @@ namespace IdeologyExpandedEnclaves
             }
 
             site.ClearTemporaryParty();
-        }
-
-        private static bool InitializeTrader(
-            EnclaveExpeditionSite site,
-            Pawn trader,
-            Map map
-        )
-        {
-            if (
-                trader?.mindState == null ||
-                trader.inventory == null ||
-                map == null
-            )
-            {
-                return false;
-            }
-
-            string defName =
-                EnclaveExpeditionUtility.GetTraderKindDefName(
-                    site.Purpose
-                );
-            TraderKindDef traderKind =
-                DefDatabase<TraderKindDef>.GetNamedSilentFail(defName);
-
-            if (traderKind?.stockGenerators.NullOrEmpty() != false)
-            {
-                return false;
-            }
-
-            trader.mindState.wantsToTradeWithColony = true;
-            PawnComponentsUtility.AddAndRemoveDynamicComponents(trader);
-
-            if (trader.trader == null)
-            {
-                return false;
-            }
-
-            trader.trader.traderKind = traderKind;
-
-            foreach (StockGenerator generator in traderKind.stockGenerators)
-            {
-                foreach (
-                    Thing thing in
-                    generator.GenerateThings(map.Tile, trader.Faction)
-                )
-                {
-                    if (!trader.inventory.innerContainer.TryAdd(thing))
-                    {
-                        thing.Destroy(DestroyMode.Vanish);
-                    }
-                }
-            }
-
-            EnclaveTradeService.SuppressVanillaTradeOption(trader);
-            return true;
         }
 
         private static void EnsureBasicWeapon(Pawn pawn)

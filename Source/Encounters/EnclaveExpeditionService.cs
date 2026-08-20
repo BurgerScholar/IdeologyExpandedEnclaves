@@ -76,7 +76,54 @@ namespace IdeologyExpandedEnclaves
             out string failureReason
         )
         {
+            EnclaveColonyVisitRecord ignoredVisit;
+
+            return TryGenerateInternal(
+                source,
+                evaluationTick,
+                bypassCooldown,
+                bypassChance,
+                forcedOutcome: null,
+                out site,
+                out ignoredVisit,
+                out failureReason
+            );
+        }
+
+        public static bool TryGenerateForDevelopment(
+            PilgrimCamp source,
+            int evaluationTick,
+            EnclaveExpeditionOutcome forcedOutcome,
+            out EnclaveExpeditionSite site,
+            out EnclaveColonyVisitRecord visit,
+            out string failureReason
+        )
+        {
+            return TryGenerateInternal(
+                source,
+                evaluationTick,
+                bypassCooldown: true,
+                bypassChance: true,
+                forcedOutcome: forcedOutcome,
+                out site,
+                out visit,
+                out failureReason
+            );
+        }
+
+        private static bool TryGenerateInternal(
+            PilgrimCamp source,
+            int evaluationTick,
+            bool bypassCooldown,
+            bool bypassChance,
+            EnclaveExpeditionOutcome? forcedOutcome,
+            out EnclaveExpeditionSite site,
+            out EnclaveColonyVisitRecord visit,
+            out string failureReason
+        )
+        {
             site = null;
+            visit = null;
             failureReason = null;
             int currentTick = Find.TickManager?.TicksGame ?? 0;
 
@@ -96,7 +143,9 @@ namespace IdeologyExpandedEnclaves
 
             if (
                 source.Data.Expedition?.IsActive == true ||
-                FindSitesForSource(source).Count > 0
+                FindSitesForSource(source).Count > 0 ||
+                EnclaveColonyVisitService
+                    .FindVisitsForSource(source).Count > 0
             )
             {
                 failureReason =
@@ -132,6 +181,122 @@ namespace IdeologyExpandedEnclaves
                 return false;
             }
 
+            EnclaveExpeditionWorldComponent component =
+                Find.World.GetComponent<
+                    EnclaveExpeditionWorldComponent
+                >();
+
+            if (component == null)
+            {
+                failureReason =
+                    "The expedition world scheduler is unavailable.";
+                return false;
+            }
+
+            int expeditionId = component.AllocateExpeditionId();
+            EnclaveExpeditionPurpose purpose =
+                EnclaveExpeditionUtility.GetPurpose(source.Data);
+
+            Settlement colonyDestination;
+            float colonyDistance;
+            bool hasColonyDestination =
+                EnclaveColonyVisitService.TryFindEligibleDestination(
+                    source,
+                    out colonyDestination,
+                    out colonyDistance
+                );
+            int visitChance = hasColonyDestination
+                ? EnclaveExpeditionUtility
+                    .GetColonyVisitChancePercent(
+                        source.Data,
+                        colonyDistance
+                    )
+                : 0;
+            float visitRoll =
+                EnclaveExpeditionUtility.GetStableColonyVisitRoll(
+                    source,
+                    evaluationTick
+                );
+            bool generateColonyVisit =
+                forcedOutcome ==
+                    EnclaveExpeditionOutcome.ColonyVisit ||
+                (
+                    !forcedOutcome.HasValue &&
+                    hasColonyDestination &&
+                    visitRoll < visitChance
+                );
+
+            if (generateColonyVisit)
+            {
+                if (!hasColonyDestination || visitChance <= 0)
+                {
+                    failureReason =
+                        "No reputation-eligible player home colony is " +
+                        "available within 30 tiles.";
+                    return false;
+                }
+
+                int departureTick =
+                    currentTick +
+                    EnclaveExpeditionUtility
+                        .GetColonyVisitDurationTicks(purpose);
+                string visitFailure;
+
+                if (
+                    EnclaveColonyVisitService.TryStartVisit(
+                        source,
+                        colonyDestination,
+                        expeditionId,
+                        purpose,
+                        currentTick,
+                        departureTick,
+                        out visit,
+                        out visitFailure
+                    )
+                )
+                {
+                    source.Data.SetExpedition(
+                        EnclaveExpeditionRecord.CreateColonyVisit(
+                            expeditionId,
+                            purpose,
+                            colonyDestination.ID,
+                            colonyDestination.Map.uniqueID,
+                            currentTick,
+                            departureTick
+                        )
+                    );
+
+                    Log.Message(
+                        "[IEE] Expedition outcome for " +
+                        source.Data.Name +
+                        ": colony visit to " +
+                        colonyDestination.Label +
+                        "; chance " +
+                        visitChance +
+                        "%, stable roll " +
+                        visitRoll.ToString("0.00") +
+                        "."
+                    );
+                    return true;
+                }
+
+                if (
+                    forcedOutcome ==
+                        EnclaveExpeditionOutcome.ColonyVisit
+                )
+                {
+                    failureReason = visitFailure;
+                    return false;
+                }
+
+                Log.Warning(
+                    "[IEE] Colony visit initialization failed for " +
+                    source.Data.Name +
+                    "; falling back to a temporary expedition site. " +
+                    (visitFailure ?? "No reason was reported.")
+                );
+            }
+
             PlanetTile destination;
 
             if (
@@ -163,18 +328,6 @@ namespace IdeologyExpandedEnclaves
                 return false;
             }
 
-            EnclaveExpeditionWorldComponent component =
-                Find.World.GetComponent<
-                    EnclaveExpeditionWorldComponent
-                >();
-
-            if (component == null)
-            {
-                failureReason =
-                    "The expedition world scheduler is unavailable.";
-                return false;
-            }
-
             Faction expeditionFaction =
                 EnclaveFactionUtility.GetOrCreateFaction();
 
@@ -185,9 +338,6 @@ namespace IdeologyExpandedEnclaves
                 return false;
             }
 
-            int expeditionId = component.AllocateExpeditionId();
-            EnclaveExpeditionPurpose purpose =
-                EnclaveExpeditionUtility.GetPurpose(source.Data);
             int expirationTick =
                 currentTick +
                 EnclaveExpeditionUtility.GetDurationTicks(purpose);
@@ -276,8 +426,10 @@ namespace IdeologyExpandedEnclaves
             EnclaveExpeditionRecord record = source.Data.Expedition;
             List<EnclaveExpeditionSite> sites =
                 FindSitesForSource(source);
+            List<EnclaveColonyVisitRecord> visits =
+                EnclaveColonyVisitService.FindVisitsForSource(source);
 
-            if (record?.IsActive == true)
+            if (record?.IsTemporarySite == true)
             {
                 EnclaveExpeditionSite matching = sites.Find(
                     candidate =>
@@ -306,7 +458,68 @@ namespace IdeologyExpandedEnclaves
                 return;
             }
 
-            if (sites.Count == 1)
+            if (record?.IsColonyVisit == true)
+            {
+                EnclaveColonyVisitRecord matching = visits.Find(
+                    candidate =>
+                        candidate.ExpeditionId == record.ExpeditionId &&
+                        candidate.Destination?.ID ==
+                            record.DestinationWorldObjectId &&
+                        candidate.Destination?.Map?.uniqueID ==
+                            record.DestinationMapId
+                );
+
+                if (matching != null)
+                {
+                    return;
+                }
+
+                record.MarkCompleted();
+                source.Data.SetNextExpeditionEligibleTick(
+                    currentTick +
+                    EnclaveExpeditionUtility.GetCooldownTicks(
+                        source.Data
+                    )
+                );
+
+                Log.Warning(
+                    "[IEE] Reconciled a missing colony visit for " +
+                    source.Data.Name +
+                    "; the expedition was completed safely."
+                );
+                return;
+            }
+
+            if (visits.Count == 1 && sites.Count == 0)
+            {
+                EnclaveColonyVisitRecord existing = visits[0];
+                Settlement destination = existing.Destination;
+
+                if (destination?.Map != null)
+                {
+                    source.Data.SetExpedition(
+                        EnclaveExpeditionRecord.CreateColonyVisit(
+                            existing.ExpeditionId,
+                            existing.Purpose,
+                            destination.ID,
+                            destination.Map.uniqueID,
+                            existing.StartTick,
+                            existing.DepartureTick
+                        )
+                    );
+
+                    Log.Message(
+                        "[IEE] Reconnected colony visit " +
+                        existing.ExpeditionId +
+                        " to " +
+                        source.Data.Name +
+                        " after load."
+                    );
+                    return;
+                }
+            }
+
+            if (sites.Count == 1 && visits.Count == 0)
             {
                 EnclaveExpeditionSite existing = sites[0];
 
@@ -328,10 +541,10 @@ namespace IdeologyExpandedEnclaves
                     " after load."
                 );
             }
-            else if (sites.Count > 1)
+            else if (sites.Count + visits.Count > 1)
             {
                 Log.Error(
-                    "[IEE] Multiple expedition sites reference " +
+                    "[IEE] Multiple expedition outcomes reference " +
                     source.Data.Name +
                     ". No new expedition will be generated until " +
                     "the invalid state is resolved."
@@ -345,7 +558,7 @@ namespace IdeologyExpandedEnclaves
         {
             EnclaveExpeditionRecord record = source?.Data?.Expedition;
 
-            if (record?.IsActive != true)
+            if (record?.IsTemporarySite != true)
             {
                 return null;
             }
@@ -359,6 +572,27 @@ namespace IdeologyExpandedEnclaves
                 site.SourceCamp == source &&
                 site.ExpeditionId == record.ExpeditionId
                     ? site
+                    : null;
+        }
+
+        public static EnclaveColonyVisitRecord GetActiveColonyVisit(
+            PilgrimCamp source
+        )
+        {
+            EnclaveExpeditionRecord record = source?.Data?.Expedition;
+
+            if (record?.IsColonyVisit != true)
+            {
+                return null;
+            }
+
+            EnclaveColonyVisitRecord visit =
+                EnclaveColonyVisitService.FindVisitForSource(source);
+
+            return
+                visit != null &&
+                visit.ExpeditionId == record.ExpeditionId
+                    ? visit
                     : null;
         }
 
@@ -417,7 +651,7 @@ namespace IdeologyExpandedEnclaves
             EnclaveExpeditionRecord record = source.Data.Expedition;
 
             if (
-                record?.IsActive != true ||
+                record?.IsTemporarySite != true ||
                 record.ExpeditionId != site.ExpeditionId ||
                 record.SiteWorldObjectId != site.ID
             )
@@ -472,6 +706,36 @@ namespace IdeologyExpandedEnclaves
                         highest,
                         camp.Data.Expedition.ExpeditionId
                     );
+                }
+            }
+
+            if (Find.Maps != null)
+            {
+                foreach (Map map in Find.Maps)
+                {
+                    EnclaveColonyVisitMapComponent visitComponent =
+                        map.GetComponent<
+                            EnclaveColonyVisitMapComponent
+                        >();
+
+                    if (visitComponent?.Visits == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (
+                        EnclaveColonyVisitRecord visit in
+                        visitComponent.Visits
+                    )
+                    {
+                        if (visit != null)
+                        {
+                            highest = Math.Max(
+                                highest,
+                                visit.ExpeditionId
+                            );
+                        }
+                    }
                 }
             }
 

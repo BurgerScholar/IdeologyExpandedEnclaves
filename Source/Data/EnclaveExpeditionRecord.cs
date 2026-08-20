@@ -14,7 +14,14 @@ namespace IdeologyExpandedEnclaves
     {
         None,
         ActiveSite,
-        Completed
+        Completed,
+        ActiveColonyVisit
+    }
+
+    public enum EnclaveExpeditionOutcome
+    {
+        TemporarySite,
+        ColonyVisit
     }
 
     public sealed class EnclaveExpeditionRecord : IExposable
@@ -25,6 +32,9 @@ namespace IdeologyExpandedEnclaves
         private int creationTick;
         private int expirationTick;
         private EnclaveExpeditionState state;
+        private EnclaveExpeditionOutcome outcome;
+        private int destinationWorldObjectId = -1;
+        private int destinationMapId = -1;
 
         public int ExpeditionId => expeditionId;
         public EnclaveExpeditionPurpose Purpose => purpose;
@@ -32,10 +42,34 @@ namespace IdeologyExpandedEnclaves
         public int CreationTick => creationTick;
         public int ExpirationTick => expirationTick;
         public EnclaveExpeditionState State => state;
+        public EnclaveExpeditionOutcome Outcome => outcome;
+        public int DestinationWorldObjectId =>
+            destinationWorldObjectId;
+        public int DestinationMapId => destinationMapId;
         public bool IsActive =>
-            state == EnclaveExpeditionState.ActiveSite &&
             expeditionId > 0 &&
-            siteWorldObjectId >= 0;
+            (
+                (
+                    state == EnclaveExpeditionState.ActiveSite &&
+                    outcome ==
+                        EnclaveExpeditionOutcome.TemporarySite &&
+                    siteWorldObjectId >= 0
+                ) ||
+                (
+                    state ==
+                        EnclaveExpeditionState.ActiveColonyVisit &&
+                    outcome ==
+                        EnclaveExpeditionOutcome.ColonyVisit &&
+                    destinationWorldObjectId >= 0 &&
+                    destinationMapId >= 0
+                )
+            );
+        public bool IsTemporarySite =>
+            IsActive &&
+            outcome == EnclaveExpeditionOutcome.TemporarySite;
+        public bool IsColonyVisit =>
+            IsActive &&
+            outcome == EnclaveExpeditionOutcome.ColonyVisit;
 
         public EnclaveExpeditionRecord()
         {
@@ -57,7 +91,34 @@ namespace IdeologyExpandedEnclaves
                 this.creationTick + 1,
                 expirationTick
             );
+            outcome = EnclaveExpeditionOutcome.TemporarySite;
             state = EnclaveExpeditionState.ActiveSite;
+        }
+
+        public static EnclaveExpeditionRecord CreateColonyVisit(
+            int expeditionId,
+            EnclaveExpeditionPurpose purpose,
+            int destinationWorldObjectId,
+            int destinationMapId,
+            int creationTick,
+            int departureTick
+        )
+        {
+            return new EnclaveExpeditionRecord
+            {
+                expeditionId = Math.Max(1, expeditionId),
+                purpose = purpose,
+                siteWorldObjectId = -1,
+                creationTick = Math.Max(0, creationTick),
+                expirationTick = Math.Max(
+                    Math.Max(0, creationTick) + 1,
+                    departureTick
+                ),
+                state = EnclaveExpeditionState.ActiveColonyVisit,
+                outcome = EnclaveExpeditionOutcome.ColonyVisit,
+                destinationWorldObjectId = destinationWorldObjectId,
+                destinationMapId = destinationMapId
+            };
         }
 
         public void ExposeData()
@@ -92,6 +153,21 @@ namespace IdeologyExpandedEnclaves
                 "state",
                 EnclaveExpeditionState.None
             );
+            Scribe_Values.Look(
+                ref outcome,
+                "outcome",
+                EnclaveExpeditionOutcome.TemporarySite
+            );
+            Scribe_Values.Look(
+                ref destinationWorldObjectId,
+                "destinationWorldObjectId",
+                -1
+            );
+            Scribe_Values.Look(
+                ref destinationMapId,
+                "destinationMapId",
+                -1
+            );
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
@@ -117,6 +193,10 @@ namespace IdeologyExpandedEnclaves
                 !Enum.IsDefined(
                     typeof(EnclaveExpeditionState),
                     state
+                ) ||
+                !Enum.IsDefined(
+                    typeof(EnclaveExpeditionOutcome),
+                    outcome
                 )
             )
             {
@@ -133,6 +213,27 @@ namespace IdeologyExpandedEnclaves
             )
             {
                 state = EnclaveExpeditionState.Completed;
+            }
+
+            if (
+                state == EnclaveExpeditionState.ActiveColonyVisit &&
+                (
+                    outcome != EnclaveExpeditionOutcome.ColonyVisit ||
+                    expeditionId <= 0 ||
+                    destinationWorldObjectId < 0 ||
+                    destinationMapId < 0 ||
+                    expirationTick <= creationTick
+                )
+            )
+            {
+                state = EnclaveExpeditionState.Completed;
+            }
+
+            if (state == EnclaveExpeditionState.ActiveSite)
+            {
+                outcome = EnclaveExpeditionOutcome.TemporarySite;
+                destinationWorldObjectId = -1;
+                destinationMapId = -1;
             }
         }
     }

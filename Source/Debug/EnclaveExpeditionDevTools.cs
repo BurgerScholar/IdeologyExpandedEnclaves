@@ -33,9 +33,33 @@ namespace IdeologyExpandedEnclaves
                 new List<PlayerThingSnapshot>();
         }
 
+        private sealed class ColonyVisitTestSnapshot
+        {
+            public int SourceCampId;
+            public int ExpeditionId;
+            public int SourcePopulation;
+            public string LeaderId;
+            public string HomeTraderId;
+            public string RecruiterId;
+            public int DestinationMapId = -1;
+            public int VisitStartedTick;
+            public readonly List<ThingIdentitySnapshot>
+                HomeTraderInventory =
+                    new List<ThingIdentitySnapshot>();
+        }
+
+        private sealed class ThingIdentitySnapshot
+        {
+            public string LoadId;
+            public int StackCount;
+        }
+
         private static readonly Dictionary<int, ExpirationTestSnapshot>
             expirationTestSnapshots =
                 new Dictionary<int, ExpirationTestSnapshot>();
+        private static readonly Dictionary<int, ColonyVisitTestSnapshot>
+            colonyVisitTestSnapshots =
+                new Dictionary<int, ColonyVisitTestSnapshot>();
 
         public static void ShowMenu(PilgrimCamp camp)
         {
@@ -67,6 +91,30 @@ namespace IdeologyExpandedEnclaves
                         new FloatMenuOption(
                             "Validate Expedition Invariants",
                             delegate { ValidateInvariants(camp); }
+                        ),
+                        new FloatMenuOption(
+                            "Show Colony Visit Eligibility",
+                            delegate { ShowColonyVisitEligibility(camp); }
+                        ),
+                        new FloatMenuOption(
+                            "Force Colony Visit",
+                            delegate { ForceColonyVisit(camp); }
+                        ),
+                        new FloatMenuOption(
+                            "Force Colony Visit Departure",
+                            delegate { ForceColonyVisitDeparture(camp); }
+                        ),
+                        new FloatMenuOption(
+                            "Show Colony Visit State",
+                            delegate { ShowColonyVisitState(camp); }
+                        ),
+                        new FloatMenuOption(
+                            "Validate Colony Visit Invariants",
+                            delegate { ValidateColonyVisitInvariants(camp); }
+                        ),
+                        new FloatMenuOption(
+                            "Simulate Colony Visit Departure Now",
+                            delegate { ForceColonyVisitDeparture(camp); }
                         )
                     }
                 )
@@ -126,10 +174,16 @@ namespace IdeologyExpandedEnclaves
                 report.AppendLine(
                     "Record: " +
                     record.State +
+                    "; outcome " +
+                    record.Outcome +
                     "; expedition " +
                     record.ExpeditionId +
                     "; site " +
-                    record.SiteWorldObjectId
+                    record.SiteWorldObjectId +
+                    "; destination " +
+                    record.DestinationWorldObjectId +
+                    "/map " +
+                    record.DestinationMapId
                 );
                 report.AppendLine(
                     "Creation/expiration ticks: " +
@@ -163,12 +217,14 @@ namespace IdeologyExpandedEnclaves
 
             EnclaveExpeditionSite site;
             string reason;
-            bool generated = EnclaveExpeditionService.TryGenerate(
+            EnclaveColonyVisitRecord ignoredVisit;
+            bool generated =
+                EnclaveExpeditionService.TryGenerateForDevelopment(
                 camp,
                 Find.TickManager?.TicksGame ?? 0,
-                bypassCooldown: true,
-                bypassChance: true,
+                EnclaveExpeditionOutcome.TemporarySite,
                 out site,
+                out ignoredVisit,
                 out reason
             );
 
@@ -246,6 +302,411 @@ namespace IdeologyExpandedEnclaves
             CameraJumper.TryJump(site.Tile);
         }
 
+        private static void ShowColonyVisitEligibility(
+            PilgrimCamp camp
+        )
+        {
+            Settlement destination;
+            float distance;
+            bool eligible = EnclaveColonyVisitService
+                .TryFindEligibleDestination(
+                    camp,
+                    out destination,
+                    out distance
+                );
+            int chance = eligible
+                ? EnclaveExpeditionUtility
+                    .GetColonyVisitChancePercent(
+                        camp.Data,
+                        distance
+                    )
+                : 0;
+            StringBuilder report = new StringBuilder();
+
+            report.AppendLine("COLONY VISIT ELIGIBILITY");
+            report.AppendLine("Source: " + camp.Data.Name);
+            report.AppendLine(
+                "Reputation: " +
+                camp.Data.Reputation +
+                " — " +
+                camp.Data.ReputationTierLabel
+            );
+            report.AppendLine(
+                "Archetype: " +
+                EnclaveArchetypeUtility.GetDisplayName(camp.Data)
+            );
+            report.AppendLine(
+                "Visit type: " +
+                EnclaveExpeditionUtility.GetColonyVisitTypeLabel(
+                    EnclaveExpeditionUtility.GetPurpose(camp.Data)
+                )
+            );
+
+            if (eligible)
+            {
+                report.AppendLine(
+                    "Nearest colony: " + destination.Label
+                );
+                report.AppendLine(
+                    "Distance: " +
+                    distance.ToString("0.#") +
+                    " tiles (" +
+                    EnclaveProximityUtility.GetDistanceBand(
+                        distance
+                    ) +
+                    ")"
+                );
+            }
+            else
+            {
+                report.AppendLine(
+                    "Nearest colony: None within 30 tiles"
+                );
+            }
+
+            report.AppendLine(
+                "Site vs visit chance: " + chance + "% visit"
+            );
+            ShowReport(report.ToString().TrimEnd());
+        }
+
+        private static void ForceColonyVisit(PilgrimCamp camp)
+        {
+            ColonyVisitTestSnapshot snapshot =
+                CaptureColonyVisitSnapshot(camp);
+            EnclaveExpeditionSite ignoredSite;
+            EnclaveColonyVisitRecord visit;
+            string reason;
+            bool generated =
+                EnclaveExpeditionService.TryGenerateForDevelopment(
+                    camp,
+                    Find.TickManager?.TicksGame ?? 0,
+                    EnclaveExpeditionOutcome.ColonyVisit,
+                    out ignoredSite,
+                    out visit,
+                    out reason
+                );
+
+            if (!generated || visit == null)
+            {
+                Messages.Message(
+                    reason ?? "Colony visit generation failed.",
+                    MessageTypeDefOf.RejectInput
+                );
+                return;
+            }
+
+            snapshot.ExpeditionId = visit.ExpeditionId;
+            snapshot.DestinationMapId =
+                visit.Destination?.Map?.uniqueID ?? -1;
+            snapshot.VisitStartedTick = visit.StartTick;
+            colonyVisitTestSnapshots[camp.ID] = snapshot;
+
+            Map destinationMap = visit.Destination?.Map;
+
+            if (destinationMap != null)
+            {
+                Pawn firstVisitor = visit.Visitors.Count > 0
+                    ? visit.Visitors[0]
+                    : null;
+
+                CameraJumper.TryJump(
+                    firstVisitor?.Position ??
+                        destinationMap.Center,
+                    destinationMap
+                );
+            }
+
+            Messages.Message(
+                "Generated " +
+                EnclaveExpeditionUtility.GetColonyVisitTypeLabel(
+                    visit.Purpose
+                ) +
+                " at " +
+                (visit.Destination?.Label ?? "the colony") +
+                " through the production expedition service.",
+                MessageTypeDefOf.PositiveEvent
+            );
+        }
+
+        private static void ForceColonyVisitDeparture(
+            PilgrimCamp camp
+        )
+        {
+            string result;
+            bool started = EnclaveColonyVisitService
+                .TryBeginDeparture(camp, out result);
+
+            Messages.Message(
+                result,
+                started
+                    ? MessageTypeDefOf.PositiveEvent
+                    : MessageTypeDefOf.RejectInput
+            );
+        }
+
+        private static void ShowColonyVisitState(PilgrimCamp camp)
+        {
+            EnclaveExpeditionRecord expedition = camp.Data.Expedition;
+            EnclaveColonyVisitRecord visit =
+                EnclaveExpeditionService.GetActiveColonyVisit(camp);
+            StringBuilder report = new StringBuilder();
+
+            report.AppendLine("COLONY VISIT STATE");
+            report.AppendLine("Source: " + camp.Data.Name);
+
+            if (visit == null)
+            {
+                report.AppendLine("Active visit: None");
+                report.AppendLine(
+                    "Expedition record: " +
+                    (expedition == null
+                        ? "None"
+                        : expedition.State.ToString())
+                );
+                ShowReport(report.ToString().TrimEnd());
+                return;
+            }
+
+            report.AppendLine(
+                "Expedition ID: " + visit.ExpeditionId
+            );
+            report.AppendLine(
+                "Destination: " +
+                (visit.Destination?.Label ?? "Unavailable")
+            );
+            report.AppendLine(
+                "Visit type: " +
+                EnclaveExpeditionUtility.GetColonyVisitTypeLabel(
+                    visit.Purpose
+                )
+            );
+            report.AppendLine(
+                "Visitors: " + visit.Visitors.Count
+            );
+            report.AppendLine(
+                "Trader: " +
+                (visit.Trader == null
+                    ? "Unavailable"
+                    : visit.Trader.LabelShort +
+                        " (" +
+                        visit.Trader.GetUniqueLoadID() +
+                        ")")
+            );
+            report.AppendLine(
+                "Departure tick: " + visit.DepartureTick
+            );
+            report.AppendLine("Lifecycle: " + visit.State);
+            report.AppendLine(
+                "Source population: " +
+                visit.SourcePopulationAtStart +
+                " before / " +
+                camp.Data.Population +
+                " current"
+            );
+            ShowReport(report.ToString().TrimEnd());
+        }
+
+        private static void ValidateColonyVisitInvariants(
+            PilgrimCamp camp
+        )
+        {
+            List<string> failures = new List<string>();
+            int checks = 0;
+            EnclaveExpeditionRecord expedition = camp.Data.Expedition;
+            EnclaveColonyVisitRecord visit =
+                EnclaveExpeditionService.GetActiveColonyVisit(camp);
+            ColonyVisitTestSnapshot snapshot;
+
+            colonyVisitTestSnapshots.TryGetValue(
+                camp.ID,
+                out snapshot
+            );
+
+            if (snapshot != null && snapshot.SourceCampId != camp.ID)
+            {
+                colonyVisitTestSnapshots.Remove(camp.ID);
+                snapshot = null;
+            }
+
+            CheckColonyVisitFormulaInvariants(ref checks, failures);
+
+            if (visit != null)
+            {
+                Ideo sourceIdeo =
+                    EnclaveIdeologyUtility.GetActualIdeo(camp.Data);
+                Check(
+                    ++checks,
+                    expedition?.IsColonyVisit == true &&
+                        expedition.ExpeditionId == visit.ExpeditionId,
+                    "source expedition outcome is Colony Visit",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    visit.Purpose ==
+                        EnclaveExpeditionUtility.GetPurpose(camp.Data),
+                    "archetype maps to the correct visit type",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    visit.Destination?.Map != null &&
+                        visit.Destination.Map.IsPlayerHome &&
+                        expedition.DestinationWorldObjectId ==
+                            visit.Destination.ID &&
+                        expedition.DestinationMapId ==
+                            visit.Destination.Map.uniqueID,
+                    "destination and persistent IDs correspond",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    AllVisitorsUseSourceIdentity(
+                        camp,
+                        visit,
+                        sourceIdeo
+                    ),
+                    "temporary visitors link to the source and its Ideo",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    NoVisitorIsAHomeMember(camp, visit),
+                    "temporary visitors are not home members",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    camp.Data.Population ==
+                        visit.SourcePopulationAtStart,
+                    "source population is unchanged",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    !visit.ContainsVisitor(
+                        camp.PawnRoles?.GetPawn(
+                            EnclavePawnRole.Leader
+                        )
+                    ) &&
+                        !visit.ContainsVisitor(
+                            camp.PawnRoles?.GetPawn(
+                                EnclavePawnRole.Trader
+                            )
+                        ) &&
+                        !visit.ContainsVisitor(
+                            camp.PawnRoles?.GetPawn(
+                                EnclavePawnRole.Recruiter
+                            )
+                        ),
+                    "home role pawns were not reused by the visit",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    visit.Trader != null &&
+                        CountVisitorReference(
+                            visit,
+                            visit.Trader
+                        ) == 1 &&
+                        visit.Trader.trader?.traderKind != null,
+                    "exactly one initialized temporary Trader exists",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    visit.Trader?.inventory != null &&
+                        visit.Trader.inventory.innerContainer.Count > 0 &&
+                        visit.Trader !=
+                            camp.PawnRoles?.GetPawn(
+                                EnclavePawnRole.Trader
+                            ),
+                    "temporary Trader stock is independent",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    visit.DepartureTick - visit.StartTick ==
+                        EnclaveExpeditionUtility
+                            .GetColonyVisitDurationTicks(
+                                visit.Purpose
+                            ) &&
+                        visit.DepartureTick > visit.StartTick,
+                    "planned departure tick is valid and stable",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    expedition.IsActive &&
+                        EnclaveExpeditionService
+                            .GetActiveSite(camp) == null &&
+                        EnclaveColonyVisitService
+                            .FindVisitsForSource(camp).Count == 1,
+                    "one-active-expedition guard spans both outcomes",
+                    failures
+                );
+                ValidateVisitSnapshot(
+                    camp,
+                    snapshot,
+                    ref checks,
+                    failures,
+                    active: true
+                );
+            }
+            else if (snapshot != null)
+            {
+                Check(
+                    ++checks,
+                    expedition?.IsActive != true,
+                    "expedition is inactive after departure",
+                    failures
+                );
+                Check(
+                    ++checks,
+                    camp.Data.NextExpeditionEligibleTick >
+                        snapshot.VisitStartedTick,
+                    "normal expedition cooldown has started",
+                    failures
+                );
+                ValidateVisitSnapshot(
+                    camp,
+                    snapshot,
+                    ref checks,
+                    failures,
+                    active: false
+                );
+            }
+
+            bool passed = failures.Count == 0;
+
+            if (passed && visit == null && snapshot != null)
+            {
+                colonyVisitTestSnapshots.Remove(camp.ID);
+            }
+
+            StringBuilder report = new StringBuilder();
+            report.AppendLine(
+                "Colony Visit Invariants — " +
+                (passed ? "PASS" : "FAIL")
+            );
+            report.AppendLine(
+                passed
+                    ? checks + "/" + checks + " checks passed"
+                    : failures.Count +
+                        " failure(s) across " +
+                        checks +
+                        " checks"
+            );
+
+            foreach (string failure in failures)
+            {
+                report.AppendLine("✗ " + failure);
+            }
+
+            ShowReport(report.ToString().TrimEnd());
+        }
+
         private static void ValidateInvariants(PilgrimCamp camp)
         {
             EnclaveExpeditionRecord record = camp.Data.Expedition;
@@ -264,7 +725,7 @@ namespace IdeologyExpandedEnclaves
                 failures
             );
 
-            if (record?.IsActive == true)
+            if (record?.IsTemporarySite == true)
             {
                 Check(
                     ++checks,
@@ -309,6 +770,17 @@ namespace IdeologyExpandedEnclaves
                     site?.ExpeditionMembers?.Members?.Count <=
                         EnclaveExpeditionUtility.MaximumPartySize,
                     "temporary party respects the hard cap",
+                    failures
+                );
+            }
+            else if (record?.IsColonyVisit == true)
+            {
+                Check(
+                    ++checks,
+                    site == null && allSites.Count == 0 &&
+                        EnclaveExpeditionService
+                            .GetActiveColonyVisit(camp) != null,
+                    "colony visit is the sole active expedition outcome",
                     failures
                 );
             }
@@ -450,6 +922,393 @@ namespace IdeologyExpandedEnclaves
             }
 
             ShowReport(report.ToString().TrimEnd());
+        }
+
+        private static void CheckColonyVisitFormulaInvariants(
+            ref int checks,
+            List<string> failures
+        )
+        {
+            Check(
+                ++checks,
+                GetFormulaChance(
+                    EnclaveReputationTier.Wary,
+                    EnclaveArchetype.TradeCompact,
+                    5f
+                ) == 0,
+                "Wary colony-visit chance is 0%",
+                failures
+            );
+            Check(
+                ++checks,
+                GetFormulaChance(
+                    EnclaveReputationTier.Hostile,
+                    EnclaveArchetype.TradeCompact,
+                    5f
+                ) == 0,
+                "Hostile colony-visit chance is 0%",
+                failures
+            );
+            Check(
+                ++checks,
+                GetFormulaChance(
+                    EnclaveReputationTier.Neutral,
+                    EnclaveArchetype.Hearthbound,
+                    5f
+                ) == 0,
+                "Neutral Hearthbound colony-visit chance is 0%",
+                failures
+            );
+            Check(
+                ++checks,
+                GetFormulaChance(
+                    EnclaveReputationTier.Neutral,
+                    EnclaveArchetype.WarriorCovenant,
+                    5f
+                ) == 0,
+                "Neutral Warrior Covenant colony-visit chance is 0%",
+                failures
+            );
+            Check(
+                ++checks,
+                GetFormulaChance(
+                    EnclaveReputationTier.Neutral,
+                    EnclaveArchetype.TradeCompact,
+                    5f
+                ) == 40,
+                "Neutral Trade Compact Strong chance is 40%",
+                failures
+            );
+            Check(
+                ++checks,
+                GetFormulaChance(
+                    EnclaveReputationTier.Revered,
+                    EnclaveArchetype.Hearthbound,
+                    5f
+                ) == 75,
+                "Revered Hearthbound Strong chance clamps to 75%",
+                failures
+            );
+        }
+
+        private static int GetFormulaChance(
+            EnclaveReputationTier tier,
+            EnclaveArchetype archetype,
+            float distance
+        )
+        {
+            EnclaveData data = new EnclaveData
+            {
+                Archetype = archetype,
+                Reputation = ReputationForTier(tier)
+            };
+
+            return EnclaveExpeditionUtility
+                .GetColonyVisitChancePercent(data, distance);
+        }
+
+        private static int ReputationForTier(
+            EnclaveReputationTier tier
+        )
+        {
+            switch (tier)
+            {
+                case EnclaveReputationTier.Hostile:
+                    return -50;
+                case EnclaveReputationTier.Wary:
+                    return -10;
+                case EnclaveReputationTier.Friendly:
+                    return 30;
+                case EnclaveReputationTier.Trusted:
+                    return 60;
+                case EnclaveReputationTier.Revered:
+                    return 90;
+                default:
+                    return 0;
+            }
+        }
+
+        private static ColonyVisitTestSnapshot
+            CaptureColonyVisitSnapshot(PilgrimCamp camp)
+        {
+            ColonyVisitTestSnapshot snapshot =
+                new ColonyVisitTestSnapshot
+                {
+                    SourceCampId = camp.ID,
+                    SourcePopulation = camp.Data.Population,
+                    LeaderId = PawnId(
+                        camp.PawnRoles?.GetPawn(
+                            EnclavePawnRole.Leader
+                        )
+                    ),
+                    HomeTraderId = PawnId(
+                        camp.PawnRoles?.GetPawn(
+                            EnclavePawnRole.Trader
+                        )
+                    ),
+                    RecruiterId = PawnId(
+                        camp.PawnRoles?.GetPawn(
+                            EnclavePawnRole.Recruiter
+                        )
+                    )
+                };
+            Pawn homeTrader = camp.PawnRoles?.GetPawn(
+                EnclavePawnRole.Trader
+            );
+
+            if (homeTrader?.inventory != null)
+            {
+                foreach (
+                    Thing thing in
+                    homeTrader.inventory.innerContainer
+                )
+                {
+                    snapshot.HomeTraderInventory.Add(
+                        new ThingIdentitySnapshot
+                        {
+                            LoadId = thing.GetUniqueLoadID(),
+                            StackCount = thing.stackCount
+                        }
+                    );
+                }
+            }
+
+            return snapshot;
+        }
+
+        private static void ValidateVisitSnapshot(
+            PilgrimCamp camp,
+            ColonyVisitTestSnapshot snapshot,
+            ref int checks,
+            List<string> failures,
+            bool active
+        )
+        {
+            if (snapshot == null)
+            {
+                return;
+            }
+
+            Check(
+                ++checks,
+                snapshot.SourceCampId == camp.ID &&
+                    camp.Data.Population == snapshot.SourcePopulation,
+                "source population matches its pre-visit snapshot",
+                failures
+            );
+            Check(
+                ++checks,
+                PawnId(
+                    camp.PawnRoles?.GetPawn(EnclavePawnRole.Leader)
+                ) == snapshot.LeaderId &&
+                PawnId(
+                    camp.PawnRoles?.GetPawn(EnclavePawnRole.Trader)
+                ) == snapshot.HomeTraderId &&
+                PawnId(
+                    camp.PawnRoles?.GetPawn(EnclavePawnRole.Recruiter)
+                ) == snapshot.RecruiterId,
+                "home Leader, Trader, and Recruiter are unchanged",
+                failures
+            );
+            Check(
+                ++checks,
+                HomeTraderInventoryIsUnchanged(snapshot),
+                "home Trader inventory is unchanged",
+                failures
+            );
+            Check(
+                ++checks,
+                snapshot.DestinationMapId < 0 ||
+                    Find.Maps.Exists(
+                        map =>
+                            map.uniqueID ==
+                                snapshot.DestinationMapId
+                    ),
+                "destination map was not regenerated or removed",
+                failures
+            );
+
+            if (active)
+            {
+                Check(
+                    ++checks,
+                    camp.Data.Expedition?.ExpeditionId ==
+                        snapshot.ExpeditionId,
+                    "active visit retains its generated expedition ID",
+                    failures
+                );
+            }
+        }
+
+        private static bool HomeTraderInventoryIsUnchanged(
+            ColonyVisitTestSnapshot snapshot
+        )
+        {
+            Pawn trader = FindPawnById(
+                snapshot.HomeTraderId,
+                snapshot.SourceCampId
+            );
+
+            if (trader == null)
+            {
+                return snapshot.HomeTraderId.NullOrEmpty() &&
+                    snapshot.HomeTraderInventory.Count == 0;
+            }
+
+            if (trader.inventory == null)
+            {
+                return snapshot.HomeTraderInventory.Count == 0;
+            }
+
+            if (
+                trader.inventory.innerContainer.Count !=
+                    snapshot.HomeTraderInventory.Count
+            )
+            {
+                return false;
+            }
+
+            foreach (
+                ThingIdentitySnapshot thingSnapshot in
+                snapshot.HomeTraderInventory
+            )
+            {
+                Thing match = null;
+
+                foreach (Thing thing in trader.inventory.innerContainer)
+                {
+                    if (thing.GetUniqueLoadID() == thingSnapshot.LoadId)
+                    {
+                        match = thing;
+                        break;
+                    }
+                }
+
+                if (match == null || match.stackCount != thingSnapshot.StackCount)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static Pawn FindPawnById(
+            string pawnId,
+            int sourceCampId
+        )
+        {
+            if (pawnId.NullOrEmpty())
+            {
+                return null;
+            }
+
+            PilgrimCamp source = null;
+
+            foreach (WorldObject worldObject in Find.WorldObjects.AllWorldObjects)
+            {
+                PilgrimCamp candidate = worldObject as PilgrimCamp;
+
+                if (candidate?.ID == sourceCampId)
+                {
+                    source = candidate;
+                    break;
+                }
+            }
+
+            if (source?.PawnRoles == null)
+            {
+                return null;
+            }
+
+            foreach (EnclavePawnRole role in new[]
+            {
+                EnclavePawnRole.Leader,
+                EnclavePawnRole.Trader,
+                EnclavePawnRole.Recruiter
+            })
+            {
+                Pawn pawn = source.PawnRoles.GetPawn(role);
+
+                if (PawnId(pawn) == pawnId)
+                {
+                    return pawn;
+                }
+            }
+
+            return null;
+        }
+
+        private static string PawnId(Pawn pawn)
+        {
+            return pawn?.GetUniqueLoadID();
+        }
+
+        private static bool AllVisitorsUseSourceIdentity(
+            PilgrimCamp camp,
+            EnclaveColonyVisitRecord visit,
+            Ideo sourceIdeo
+        )
+        {
+            if (
+                visit?.SourceCamp != camp ||
+                sourceIdeo == null ||
+                visit.Visitors.Count == 0
+            )
+            {
+                return false;
+            }
+
+            foreach (Pawn pawn in visit.Visitors)
+            {
+                if (
+                    pawn == null ||
+                    pawn.Destroyed ||
+                    !EnclaveFactionUtility.IsEnclaveFaction(
+                        pawn.Faction
+                    ) ||
+                    pawn.Ideo != sourceIdeo
+                )
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool NoVisitorIsAHomeMember(
+            PilgrimCamp camp,
+            EnclaveColonyVisitRecord visit
+        )
+        {
+            foreach (Pawn pawn in visit.Visitors)
+            {
+                if (camp.PawnMembers?.Contains(pawn) == true)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static int CountVisitorReference(
+            EnclaveColonyVisitRecord visit,
+            Pawn pawn
+        )
+        {
+            int count = 0;
+
+            foreach (Pawn visitor in visit.Visitors)
+            {
+                if (visitor == pawn)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         private static ExpirationTestSnapshot CaptureExpirationSnapshot(

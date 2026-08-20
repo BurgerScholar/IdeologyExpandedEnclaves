@@ -125,6 +125,28 @@ namespace IdeologyExpandedEnclaves
                 return true;
             }
 
+            EnclaveColonyVisitRecord colonyVisit;
+
+            if (
+                EnclaveColonyVisitService.TryGetVisitForTrader(
+                    trader,
+                    out colonyVisit
+                )
+            )
+            {
+                if (
+                    colonyVisit.SourceCamp?.Data == null ||
+                    colonyVisit.SourceCamp.Destroyed
+                )
+                {
+                    tradeHost = null;
+                    return false;
+                }
+
+                sourceCamp = colonyVisit.SourceCamp;
+                return true;
+            }
+
             EnclaveExpeditionSite expedition =
                 tradeHost as EnclaveExpeditionSite;
 
@@ -178,6 +200,41 @@ namespace IdeologyExpandedEnclaves
             );
         }
 
+        public static bool TradingIsAvailable(
+            MapParent tradeHost,
+            Pawn trader,
+            out string unavailableReason
+        )
+        {
+            EnclaveColonyVisitRecord visit;
+
+            if (
+                EnclaveColonyVisitService.TryGetVisitForTrader(
+                    trader,
+                    out visit
+                )
+            )
+            {
+                if (
+                    visit.State != EnclaveColonyVisitState.Active ||
+                    visit.Destination?.Map != trader.Map
+                )
+                {
+                    unavailableReason =
+                        "Trading unavailable. This enclave delegation " +
+                        "is departing.";
+                    return false;
+                }
+
+                return TradingIsAvailable(
+                    visit.SourceCamp,
+                    out unavailableReason
+                );
+            }
+
+            return TradingIsAvailable(tradeHost, out unavailableReason);
+        }
+
         public static void SuppressVanillaTradeOption(Pawn trader)
         {
             if (trader?.mindState != null)
@@ -217,10 +274,10 @@ namespace IdeologyExpandedEnclaves
             Pawn trader = null
         )
         {
-            PilgrimCamp sourceCamp = GetSourceCamp(tradeHost);
+            PilgrimCamp sourceCamp = GetSourceCamp(tradeHost, trader);
             string reason;
 
-            TradingIsAvailable(tradeHost, out reason);
+            TradingIsAvailable(tradeHost, trader, out reason);
 
             Messages.Message(
                 reason ?? "Trading is currently unavailable.",
@@ -263,7 +320,13 @@ namespace IdeologyExpandedEnclaves
                 return false;
             }
 
-            if (!TradingIsAvailable(tradeHost, out unavailableReason))
+            if (
+                !TradingIsAvailable(
+                    tradeHost,
+                    trader,
+                    out unavailableReason
+                )
+            )
             {
                 NotifyTradeBlocked(tradeHost, trader);
                 return false;
@@ -466,6 +529,19 @@ namespace IdeologyExpandedEnclaves
                         .GetTraderKindDefName(expedition.Purpose);
                 }
 
+                EnclaveColonyVisitRecord visit;
+
+                if (
+                    EnclaveColonyVisitService.TryGetVisitForTrader(
+                        trader,
+                        out visit
+                    )
+                )
+                {
+                    defName = EnclaveExpeditionUtility
+                        .GetTraderKindDefName(visit.Purpose);
+                }
+
                 traderKind =
                     DefDatabase<TraderKindDef>.GetNamedSilentFail(
                         defName
@@ -510,7 +586,11 @@ namespace IdeologyExpandedEnclaves
                 {
                     string reason;
 
-                    return TradingIsAvailable(tradeHost, out reason) &&
+                    return TradingIsAvailable(
+                            tradeHost,
+                            trader,
+                            out reason
+                        ) &&
                         TraderCanTradeNow(trader);
                 }
             }
@@ -594,6 +674,19 @@ namespace IdeologyExpandedEnclaves
                     return;
                 }
 
+                EnclaveVisitingGroup visitingGroup =
+                    GetVisitingGroup(tradeHost);
+
+                if (visitingGroup == null)
+                {
+                    InnerTrader.GiveSoldThingToPlayer(
+                        toGive,
+                        countToGive,
+                        playerNegotiator
+                    );
+                    return;
+                }
+
                 Thing purchased = toGive.SplitOff(countToGive);
 
                 purchased.PreTraded(
@@ -603,9 +696,7 @@ namespace IdeologyExpandedEnclaves
                 );
 
                 List<Pawn> receivers =
-                    GetVisitingGroup(tradeHost)
-                        ?.ActiveMembersList(tradeHost) ??
-                    new List<Pawn>();
+                    visitingGroup.ActiveMembersList(tradeHost);
                 Pawn receiver =
                     CaravanInventoryUtility.FindPawnToMoveInventoryTo(
                         purchased,
@@ -687,13 +778,35 @@ namespace IdeologyExpandedEnclaves
         }
 
         internal static PilgrimCamp GetSourceCamp(
-            MapParent tradeHost
+            MapParent tradeHost,
+            Pawn trader = null
         )
         {
             PilgrimCamp camp = tradeHost as PilgrimCamp;
 
-            return camp ??
-                (tradeHost as EnclaveExpeditionSite)?.SourceCamp;
+            if (camp != null)
+            {
+                return camp;
+            }
+
+            EnclaveExpeditionSite expedition =
+                tradeHost as EnclaveExpeditionSite;
+
+            if (expedition != null)
+            {
+                return expedition.SourceCamp;
+            }
+
+            EnclaveColonyVisitRecord visit;
+
+            return
+                trader != null &&
+                EnclaveColonyVisitService.TryGetVisitForTrader(
+                    trader,
+                    out visit
+                )
+                    ? visit.SourceCamp
+                    : null;
         }
 
         internal static bool IsDesignatedTrader(
@@ -759,6 +872,7 @@ namespace IdeologyExpandedEnclaves
             if (
                 !EnclaveTradeService.TradingIsAvailable(
                     tradeHost,
+                    clickedPawn,
                     out unavailableReason
                 )
             )

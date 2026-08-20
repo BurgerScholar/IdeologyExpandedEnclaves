@@ -17,6 +17,28 @@ namespace IdeologyExpandedEnclaves
         {
             camp = pawn?.Map?.Parent as PilgrimCamp;
 
+            if (camp == null)
+            {
+                EnclaveExpeditionSite expedition =
+                    pawn?.Map?.Parent as EnclaveExpeditionSite;
+
+                if (
+                    expedition?.ExpeditionMembers?.Contains(pawn) ==
+                        true
+                )
+                {
+                    camp = expedition.SourceCamp;
+                }
+            }
+
+            if (camp == null)
+            {
+                EnclaveColonyVisitService.TryResolveVisitor(
+                    pawn,
+                    out camp
+                );
+            }
+
             if (
                 camp == null ||
                 pawn.Destroyed ||
@@ -214,10 +236,35 @@ namespace IdeologyExpandedEnclaves
                 return false;
             }
 
+            if (!EnclaveFactionUtility.IsEnclaveFaction(pawn.Faction))
+            {
+                return false;
+            }
+
+            if (camp.PawnMembers?.Contains(pawn) == true)
+            {
+                return true;
+            }
+
+            EnclaveExpeditionSite expedition =
+                pawn.Map?.Parent as EnclaveExpeditionSite;
+
+            if (
+                expedition?.SourceCamp == camp &&
+                expedition.ExpeditionMembers?.Contains(pawn) == true
+            )
+            {
+                return true;
+            }
+
+            PilgrimCamp visitorSource;
+
             return
-                EnclaveFactionUtility.IsEnclaveFaction(pawn.Faction) &&
-                camp.PawnMembers != null &&
-                camp.PawnMembers.Contains(pawn);
+                EnclaveColonyVisitService.TryResolveVisitor(
+                    pawn,
+                    out visitorSource
+                ) &&
+                visitorSource == camp;
         }
 
         private static bool IsSpecialRolePawn(

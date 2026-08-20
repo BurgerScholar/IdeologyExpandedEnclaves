@@ -303,12 +303,38 @@ namespace IdeologyExpandedEnclaves
             EnclaveExpeditionRecord record = camp.Data.Expedition;
             EnclaveExpeditionSite site =
                 EnclaveExpeditionService.GetActiveSite(camp);
+            EnclaveColonyVisitRecord visit =
+                EnclaveExpeditionService.GetActiveColonyVisit(camp);
 
             if (record?.IsActive != true)
             {
                 return new List<string>
                 {
                     "No active expedition"
+                };
+            }
+
+            if (record.IsColonyVisit)
+            {
+                string visitState = visit == null
+                    ? "Visit state is being reconciled."
+                    : visit.State ==
+                        EnclaveColonyVisitState.Departing ||
+                        visit.State ==
+                            EnclaveColonyVisitState.DetachedCleanup
+                        ? "Departing"
+                        : EnclaveExpeditionUtility.FormatRemainingTime(
+                            record.ExpirationTick
+                        ) + " remaining";
+
+                return new List<string>
+                {
+                    EnclaveExpeditionUtility.GetColonyVisitTypeLabel(
+                        record.Purpose
+                    ) +
+                    " — visiting " +
+                    (visit?.Destination?.Label ?? "unknown colony"),
+                    visitState
                 };
             }
 

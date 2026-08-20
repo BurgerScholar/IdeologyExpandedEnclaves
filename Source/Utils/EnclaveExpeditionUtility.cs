@@ -8,6 +8,8 @@ namespace IdeologyExpandedEnclaves
         public const int ShortRetryTicks = 180000;
         public const int MinimumCooldownDays = 25;
         public const int MaximumPartySize = 6;
+        public const int MaximumColonyVisitDistance = 30;
+        public const int MaximumColonyVisitChancePercent = 75;
 
         public static EnclaveExpeditionPurpose GetPurpose(
             EnclaveData data
@@ -54,6 +56,21 @@ namespace IdeologyExpandedEnclaves
             }
         }
 
+        public static string GetColonyVisitTypeLabel(
+            EnclaveExpeditionPurpose purpose
+        )
+        {
+            switch (purpose)
+            {
+                case EnclaveExpeditionPurpose.Trade:
+                    return "Merchant Delegation";
+                case EnclaveExpeditionPurpose.Patrol:
+                    return "Patrol Visit";
+                default:
+                    return "Relief Visit";
+            }
+        }
+
         public static string GetTraderKindDefName(
             EnclaveExpeditionPurpose purpose
         )
@@ -82,6 +99,88 @@ namespace IdeologyExpandedEnclaves
                 default:
                     return 12 * 60000;
             }
+        }
+
+        public static int GetColonyVisitDurationTicks(
+            EnclaveExpeditionPurpose purpose
+        )
+        {
+            return (
+                purpose == EnclaveExpeditionPurpose.Trade ? 3 : 2
+            ) * 60000;
+        }
+
+        public static int GetColonyVisitChancePercent(
+            EnclaveData data,
+            float distanceInTiles
+        )
+        {
+            if (data == null)
+            {
+                return 0;
+            }
+
+            EnclaveExpeditionPurpose purpose = GetPurpose(data);
+            int chance;
+
+            switch (data.ReputationTier)
+            {
+                case EnclaveReputationTier.Friendly:
+                    chance = 30;
+                    break;
+                case EnclaveReputationTier.Trusted:
+                    chance = 45;
+                    break;
+                case EnclaveReputationTier.Revered:
+                    chance = 60;
+                    break;
+                case EnclaveReputationTier.Neutral:
+                    if (purpose != EnclaveExpeditionPurpose.Trade)
+                    {
+                        return 0;
+                    }
+
+                    chance = 20;
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (distanceInTiles <= 10f)
+            {
+                chance += 10;
+            }
+            else if (distanceInTiles > 20f)
+            {
+                chance -= 10;
+            }
+
+            switch (purpose)
+            {
+                case EnclaveExpeditionPurpose.Relief:
+                case EnclaveExpeditionPurpose.Trade:
+                    chance += 10;
+                    break;
+            }
+
+            return Math.Max(
+                0,
+                Math.Min(MaximumColonyVisitChancePercent, chance)
+            );
+        }
+
+        public static float GetStableColonyVisitRoll(
+            PilgrimCamp camp,
+            int evaluationTick
+        )
+        {
+            uint hash = StableHash(
+                camp?.ID ?? 0,
+                evaluationTick,
+                0x6C19
+            );
+
+            return (hash % 10000u) / 100f;
         }
 
         public static int GetCooldownTicks(EnclaveData data)
